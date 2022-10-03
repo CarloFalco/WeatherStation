@@ -21,17 +21,45 @@
 
   https://www.arduino.cc/en/Tutorial/BuiltInExamples/Blink
 */
-int Led = 16;
+// initialization counters
+unsigned long Count500ms;
+unsigned long PreviousCount500ms = 0;
+
+unsigned long Count1s;
+unsigned long PreviousCount1s = 0;
+
+
+
+int itsAliveLed = 16;
+float sensorValue = 0;
 // the setup function runs once when you press reset or power the board
 void setup() {
   // initialize digital pin LED_BUILTIN as an output.
-  pinMode(Led, OUTPUT);
+  pinMode(itsAliveLed, OUTPUT);
+  Serial.begin(115200);
 }
 
 // the loop function runs over and over again forever
 void loop() {
-  digitalWrite(Led, HIGH);   // turn the LED on (HIGH is the voltage level)
-  delay(1000);                       // wait for a second
-  digitalWrite(Led, LOW);    // turn the LED off by making the voltage LOW
-  delay(1000);                       // wait for a second
+
+
+  // TASK 500ms
+  Count500ms = millis();
+  if (Count500ms - PreviousCount500ms > 500)
+  { 
+    PreviousCount500ms = Count500ms;  
+    sensorValue = analogRead(A0)*3.3/1024; 
+    // print out the value you read:
+    Serial.printf("sensor = %.3f\n", sensorValue);
+  }
+
+
+  // TASK 1s
+  Count1s = millis();
+  if (Count1s - PreviousCount1s > 1000)
+  {
+    PreviousCount1s = Count1s;
+
+    digitalWrite(itsAliveLed, !digitalRead(itsAliveLed));
+  }
 }
