@@ -1,4 +1,5 @@
 # WeatherStation
+<<<<<<< HEAD
 This program is based on [ESP32](https://github.com/CarloFalco/WeatherStation/tree/main/Datasheet/ESP32-38.png) to monitor the weather
 
 Il progetto è stato suddiviso in sottocartelle 
@@ -34,3 +35,6 @@ https://github.com/adafruit/Adafruit_BME280_Library.git
 
 ## to DO:
 
+=======
+This program is based on ESP 32, to monitor the weather
+>>>>>>> 151dac3f4bfb3a41d7ae8ebe0aecd6827cb0ab8e
