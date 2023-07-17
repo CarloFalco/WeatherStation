@@ -16,7 +16,15 @@ Il progetto è stato suddiviso in sottocartelle
 basato su sensore ad effetto hall
 ### Anemometro
 basato su sensore ad effetto hall
+direzione vento
+
 ### Termometro / Barometro
+vado a leggere entrambi i sensori e faccio una media pesata come pare a me
+
+
+### pluviometro
+integro 60s e publico il risultato
+
 
 basato su sensore [BME280](Datasheet/BME280_Datasheet.pdf)
 Library: 
@@ -32,5 +40,37 @@ https://github.com/adafruit/Adafruit_BME280_Library.git
 
 
 ## to DO:
+creare un .h con tutte le info che ci interessano 
+typedef struct {
+
+Vento // m/s
+direzione // 0-360 
+
+Temperatura // °C
+Umidita 	// %
+pressione   // 
+
+
+pluviometro[24] // ora per ora
+
+
+
+
+pm10
+pm2.5
+CO
+NH3
+NO2
+
+CO2 
+TVOC
+
+
+} MyStruct;
+
+
+aggingere la scrittura su sd con time stamp 
+
+
 
 
