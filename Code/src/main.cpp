@@ -10,7 +10,7 @@
 const char* OTA_FILE_LOCATION = "https://raw.githubusercontent.com/CarloFalco/WeatherStation/refs/heads/main/Code/firmware.bin";
 const char* VERSION_URL = "https://raw.githubusercontent.com/CarloFalco/WeatherStation/refs/heads/main/Code/version.txt";
 
-const int current_fw_version = 2024121101;  // YYYYMMDDRR where R = release of the day
+const int current_fw_version = 2025010101;  // YYYYMMDDRR where R = release of the day
 
 ESP32GithubOtaUpdate otaUpdate;
 bool needToStayAlive = 0;
