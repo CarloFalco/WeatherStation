@@ -2,9 +2,15 @@
 
 #include <Arduino.h>
 #include <WiFiClientSecure.h>
+
 #include "HttpReleaseUpdate.h"
 #include "ESP32GithubOtaUpdate.h"
 #include "secret.h"
+
+#define S_TO_uS_FACTOR 1000000ULL  /* Conversion factor for micro seconds to seconds */
+#define S_TO_mS_FACTOR 1000ULL  /* Conversion factor for milli seconds to seconds */
+#define mS_TO_uS_FACTOR 1000ULL  /* Conversion factor for milli seconds to micro seconds */
+#define LED_BUILTIN 97
 
 
 const char* OTA_FILE_LOCATION = "https://raw.githubusercontent.com/CarloFalco/WeatherStation/refs/heads/main/Code/firmware.bin";
@@ -12,9 +18,15 @@ const char* VERSION_URL = "https://raw.githubusercontent.com/CarloFalco/WeatherS
 
 const int current_fw_version = 2025010101;  // YYYYMMDDRR where R = release of the day
 
+
+
 ESP32GithubOtaUpdate otaUpdate;
 bool needToStayAlive = 0;
-#define LED_BUILTIN 97
+bool rqtUpdate = false;
+int avblUpdate = 0;
+
+
+
 
 bool ledState = false; // Variabile per lo stato del LED
 
@@ -53,7 +65,6 @@ void setupOtaUpdate() {
   otaUpdate.setUpdateCheckInterval(60); // Check every 60 seconds.
   otaUpdate.begin();
 }
-
 
 void setup() {
   Serial.begin(115200);

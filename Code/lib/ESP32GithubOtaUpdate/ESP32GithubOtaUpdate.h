@@ -10,6 +10,8 @@
   #define DEBUG_ESP32GOA(x...) if (false) do { (void)0; } while (0)
 #endif
 extern bool needToStayAlive;
+extern bool rqtUpdate;
+extern int avblUpdate;
 
 class ESP32GithubOtaUpdate {
   public:
@@ -62,6 +64,9 @@ class ESP32GithubOtaUpdate {
   int _updateCheckInterval = 60; // 60 seconds.   
 };
 
+
+
+
 void ESP32GithubOtaUpdate::setUpdateCheckInterval(int updateCheckInterval) {
     _updateCheckInterval = updateCheckInterval;
     Serial.print("updateCheckInterval: ");
@@ -101,11 +106,13 @@ void ESP32GithubOtaUpdate::doFirmwareUpdate() {
 
     httpUpdate.onStart([](void) {
       needToStayAlive = 1;
+      avblUpdate = 2;
       DEBUG_ESP32GOA("[doFirmwareUpdate()]: Start downloading..\r\n");
     });
     httpUpdate.onEnd([](bool success) {
       DEBUG_ESP32GOA("[doFirmwareUpdate()]: Downloading ended.\r\n");
       needToStayAlive = 0;
+      avblUpdate = 3;
       //if (success) SPIFFS.remove("/update");
     });
     httpUpdate.onProgress([](int progress, int total) {
@@ -175,9 +182,13 @@ void ESP32GithubOtaUpdate::checkForOTA()
 {
     for (;;)
     {
-      if(doVersionCheck()) {
-        Serial.println("UpdateCheck");
-        doFirmwareUpdate();
+      if(doVersionCheck()) { // aggiornamento disponibile 
+        avblUpdate = 1;
+        Serial.println("UpdateAvailable");
+        if (rqtUpdate){
+          Serial.println("UserRequestUpdate");
+          doFirmwareUpdate();
+        }
       }
       vTaskDelay((_updateCheckInterval * 1000) / portTICK_PERIOD_MS);
     }
