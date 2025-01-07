@@ -7,8 +7,8 @@
 #include "secret.h"
 
 
-const char* OTA_FILE_LOCATION = "https://raw.githubusercontent.com/CarloFalco/ArduinoTest/refs/heads/Mqtt/11_OTA/ESP_OTA/firmware.bin";
-const char* VERSION_URL = "https://raw.githubusercontent.com/CarloFalco/ArduinoTest/refs/heads/Mqtt/11_OTA/ESP_OTA/version.txt";
+const char* OTA_FILE_LOCATION = "https://raw.githubusercontent.com/CarloFalco/WeatherStation/refs/heads/main/Code/firmware.bin";
+const char* VERSION_URL = "https://raw.githubusercontent.com/CarloFalco/WeatherStation/refs/heads/main/Code/version.txt";
 
 const int current_fw_version = 2024121101;  // YYYYMMDDRR where R = release of the day
 
@@ -69,6 +69,6 @@ void loop(){
 
   ledState = !ledState; // Inverti lo stato
   digitalWrite(LED_BUILTIN, ledState); // Imposta il nuovo stato
-  Serial.print("needToStayAlive ST: ");
+  Serial.println("needToStayAlive ST: ");
   delay(1000);
 }
