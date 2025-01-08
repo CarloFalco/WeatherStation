@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <WiFiClientSecure.h>
+#include <PubSubClient.h>
 
 #include "HttpReleaseUpdate.h"
 #include "ESP32GithubOtaUpdate.h"
@@ -27,6 +28,10 @@ int avblUpdate = 0;
 
 
 
+WiFiClientSecure espClient;
+PubSubClient mqtt_client(espClient);
+
+#include "ESP32Mqtt.h"
 
 bool ledState = false; // Variabile per lo stato del LED
 
@@ -72,14 +77,18 @@ void setup() {
   setupWiFi();   
   pinMode(LED_BUILTIN, OUTPUT);
   setupOtaUpdate();
+
+  mqtt_init();
+
 }
 
 
 
 void loop(){
+  // Questo codice non verrà eseguito, poiché l'ESP32 si risveglia dal deep sleep e ricomincia da setup().
+  mqtt_client.loop();
 
-  ledState = !ledState; // Inverti lo stato
-  digitalWrite(LED_BUILTIN, ledState); // Imposta il nuovo stato
-  Serial.println("needToStayAlive ST: ");
-  delay(1000);
+  // ledState = !ledState; // Inverti lo stato
+  // digitalWrite(LED_BUILTIN, ledState); // Imposta il nuovo stato
+  //delay(1000);
 }
