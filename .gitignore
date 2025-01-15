@@ -1,9 +1,8 @@
-*secret.h
 *letsEncryptCaCrt.h
 # Prerequisites
 *.d
 *secret.h
-
+*secret.cpp
 
 
 # Compiled Object files

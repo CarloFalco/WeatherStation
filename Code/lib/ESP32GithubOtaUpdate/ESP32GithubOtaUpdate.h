@@ -1,5 +1,7 @@
 #pragma once
 
+#include "HttpReleaseUpdate.h"
+
 #ifdef ENABLE_ESP32_GITHUB_OTA_UPDATE_DEBUG
   #ifdef DEBUG_ESP_PORT
     #define DEBUG_ESP32GOA(...) DEBUG_ESP_PORT.printf( __VA_ARGS__ )
