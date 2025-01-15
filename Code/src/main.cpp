@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
+#include <ESP32Time.h>
 
 #include "HttpReleaseUpdate.h"
 #include "ESP32GithubOtaUpdate.h"
@@ -36,15 +37,10 @@ PubSubClient mqtt_client(espClient);
 bool ledState = false; // Variabile per lo stato del LED
 
 void setupWiFi() {
-  #if defined(ESP8266)
-    WiFi.setSleepMode(WIFI_NONE_SLEEP); 
-    WiFi.setAutoReconnect(true);
-    Serial.print("ESP8266");
-  #elif defined(ESP32)
-    WiFi.setSleep(false); 
-    WiFi.setAutoReconnect(true);
-    Serial.print("ESP32");
-  #endif
+
+  WiFi.setSleep(false); 
+  WiFi.setAutoReconnect(true);
+  Serial.print("ESP32");
 
   // Connect to WiFi network
   WiFi.begin(ssid, password);

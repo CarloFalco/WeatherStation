@@ -35,28 +35,55 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     return;
   }
 
-  const char* msg = doc["msg"];
-  String ledStatusString = doc["LedSts"];
-  String provaString = doc["prova"];
+  if (strcmp(topic, "paperino") == 0) {
+    const char* msg = doc["msg"];
+    String ledStatusString = doc["LedSts"];
+    String provaString = doc["prova"];
 
-  int ledStatus = ledStatusString.toInt();
-  Serial.print("Messaggio: ");
-  Serial.println(msg);
+    int ledStatus = ledStatusString.toInt();
+    Serial.print("Messaggio: ");
+    Serial.println(msg);
 
-  Serial.print("Stato LED: ");
-  Serial.println(ledStatus);
+    Serial.print("Stato LED: ");
+    Serial.println(ledStatus);
 
-  Serial.print("String: ");
-  Serial.print(provaString);
-  Serial.print("\t ");
-  Serial.println(provaString.toInt());
+    Serial.print("String: ");
+    Serial.print(provaString);
+    Serial.print("\t ");
+    Serial.println(provaString.toInt());
 
-  // Controllo del LED in base al messaggio ricevuto
-  if (ledStatus == 1) {
-    digitalWrite(LED_BUILTIN, HIGH); // Accendi LED
-  } else {
-    digitalWrite(LED_BUILTIN, LOW);  // Spegni LED
+    // Controllo del LED in base al messaggio ricevuto
+    if (ledStatus == 1) {
+      digitalWrite(LED_BUILTIN, HIGH); // Accendi LED
+    } else {
+      digitalWrite(LED_BUILTIN, LOW);  // Spegni LED
+    }
+  } else if (strcmp(topic, "pluto") == 0) {
+    // Gestione del nuovo topic
+    const char* newMsg = doc["newMsg"];
+    int newValue = doc["newValue"];
+
+    Serial.print("Nuovo Messaggio: ");
+    Serial.println(newMsg);
+
+    Serial.print("Nuovo Valore: ");
+    Serial.println(newValue);
+
+    // Aggiungi qui la logica per gestire il nuovo topic
+   } else if (strcmp(topic, "pippo") == 0) {
+    // Gestione del nuovo topic
+    const char* newMsg = doc["newMsg"];
+    int newValue = doc["newValue"];
+
+    Serial.print("Nuovo Messaggio: ");
+    Serial.println(newMsg);
+
+    Serial.print("Nuovo Valore: ");
+    Serial.println(newValue);
+
+    // Aggiungi qui la logica per gestire il nuovo topic
   }
+
 }
 
 
@@ -72,10 +99,17 @@ void mqtt_init() {
   if (mqtt_client.connect(mqtt_client_id,mqtt_user,mqtt_pass)){
     Serial.println("MQTT connected");
     
+
     if (mqtt_client.subscribe("paperino")) {
       Serial.println("Sottoscritto al topic 'paperino'");
     } else {
       Serial.println("Errore nella sottoscrizione al topic 'paperino'");
+    }
+
+    if (mqtt_client.subscribe("pluto")) {
+      Serial.println("Sottoscritto al topic 'pluto'");
+    } else {
+      Serial.println("Errore nella sottoscrizione al topic 'pluto'");
     }
 
   }else {
