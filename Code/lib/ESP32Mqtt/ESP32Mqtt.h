@@ -10,6 +10,8 @@
 
 extern WiFiClientSecure espClient;
 extern PubSubClient mqtt_client;
+extern bool rqtUpdate;
+
 
 void mqttCallback(char* topic, byte* payload, unsigned int length);
 void mqtt_init();

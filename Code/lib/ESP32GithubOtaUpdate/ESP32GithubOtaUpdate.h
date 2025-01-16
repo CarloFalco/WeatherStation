@@ -23,6 +23,7 @@ class ESP32GithubOtaUpdate {
     void setUpdateCheckInterval(int updateCheckInterval);
     void begin();    
     void checkForOTA();
+    void checkOTAOnce();
           
   private:
     void setClock();    
@@ -189,12 +190,28 @@ void ESP32GithubOtaUpdate::checkForOTA()
         Serial.println("UpdateAvailable");
         if (rqtUpdate){
           Serial.println("UserRequestUpdate");
-          doFirmwareUpdate();
+          // doFirmwareUpdate();
         }
       }
       vTaskDelay((_updateCheckInterval * 1000) / portTICK_PERIOD_MS);
     }
 }
+
+void ESP32GithubOtaUpdate::checkOTAOnce()
+{
+  if(doVersionCheck()) { // aggiornamento disponibile 
+    avblUpdate = 1;
+    Serial.println("UpdateAvailable");
+    if (rqtUpdate){
+      Serial.println("UserRequestUpdate");
+      // doFirmwareUpdate();
+    }
+  }
+
+}
+
+
+
 
 void ESP32GithubOtaUpdate::setClock() {
   configTime(0, 0, "pool.ntp.org", "time.nist.gov");  // UTC

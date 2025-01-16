@@ -17,12 +17,13 @@ void handlePaperinoTopic(const StaticJsonDocument<200>& doc) {
   Serial.print(provaString);
   Serial.print("\t ");
   Serial.println(provaString.toInt());
-
+/*
   if (ledStatus == 1) {
     digitalWrite(LED_BUILTIN, HIGH);
   } else {
     digitalWrite(LED_BUILTIN, LOW);
   }
+*/
 }
 
 void handlePlutoTopic(const StaticJsonDocument<200>& doc) {
@@ -36,16 +37,20 @@ void handlePlutoTopic(const StaticJsonDocument<200>& doc) {
   Serial.println(newValue);
 }
 
-void handlePippoTopic(const StaticJsonDocument<200>& doc) {
-  const char* newMsg = doc["newMsg"];
-  int newValue = doc["newValue"];
+void handleUpdRqtTopic(const StaticJsonDocument<200>& doc) {
 
-  Serial.print("Nuovo Messaggio: ");
-  Serial.println(newMsg);
+  int updValue = doc["updValue"];
 
-  Serial.print("Nuovo Valore: ");
-  Serial.println(newValue);
+  Serial.print("Valore Update: ");
+  Serial.println(updValue);
+  if (updValue == 1){
+    rqtUpdate = true;
+  } else {
+    rqtUpdate = false;
+  }
+
 }
+
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Messaggio ricevuto su topic: ");
@@ -71,8 +76,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     handlePaperinoTopic(doc);
   } else if (strcmp(topic, "pluto") == 0) {
     handlePlutoTopic(doc);
-  } else if (strcmp(topic, "pippo") == 0) {
-    handlePippoTopic(doc);
+  } else if (strcmp(topic, "upd_rqt") == 0) {
+    handleUpdRqtTopic(doc);
   }
 }
 
@@ -85,18 +90,10 @@ void mqtt_init() {
 
   if (mqtt_client.connect(mqtt_client_id, mqtt_user, mqtt_pass)) {
     Serial.println("MQTT connected");
+    if (mqtt_client.subscribe("paperino"))  { Serial.println("Sottoscritto al topic 'paperino'");} 
+    if (mqtt_client.subscribe("pluto"))     { Serial.println("Sottoscritto al topic 'pluto'");} 
+    if (mqtt_client.subscribe("upd_rqt"))   { Serial.println("Sottoscritto al topic 'upd_rqt'");} 
 
-    if (mqtt_client.subscribe("paperino")) {
-      Serial.println("Sottoscritto al topic 'paperino'");
-    } else {
-      Serial.println("Errore nella sottoscrizione al topic 'paperino'");
-    }
-
-    if (mqtt_client.subscribe("pluto")) {
-      Serial.println("Sottoscritto al topic 'pluto'");
-    } else {
-      Serial.println("Errore nella sottoscrizione al topic 'pluto'");
-    }
   } else {
     Serial.print("MQTT connection failed, rc=");
     Serial.println(mqtt_client.state());
