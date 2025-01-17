@@ -84,7 +84,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 void mqtt_init() {
   mqtt_client.setCallback(mqttCallback);
 
-  Serial.println(leCaCrtMqtt);
+  log_v(leCaCrtMqtt);
   espClient.setCACert(leCaCrtMqtt);
   mqtt_client.setServer(mqtt_server, 8883);
 
@@ -95,7 +95,16 @@ void mqtt_init() {
     if (mqtt_client.subscribe("upd_rqt"))   { Serial.println("Sottoscritto al topic 'upd_rqt'");} 
 
   } else {
-    Serial.print("MQTT connection failed, rc=");
-    Serial.println(mqtt_client.state());
+    log_e("MQTT connection failed, rc=%d", mqtt_client.state());
   }
+/*
+  String payload = "{\"msg\": \"pippo\", \"Value\": \"1\"}";
+  mqtt_client.publish("upd_avbl", payload.c_str());
+
+
+  char testString[100];
+  sprintf(testString, "{\"msg\": \"helloWorld\", \"cycle_no\": %d}", 10);
+  Serial.println(testString);
+  mqtt_client.publish("TESTWS",(const char * ) testString, 1);
+*/
 }

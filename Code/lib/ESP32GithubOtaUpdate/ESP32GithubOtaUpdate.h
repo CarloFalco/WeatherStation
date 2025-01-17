@@ -11,9 +11,25 @@
 #else
   #define DEBUG_ESP32GOA(x...) if (false) do { (void)0; } while (0)
 #endif
+
+typedef enum {
+  NO_UPDATE = 0,
+  UPDATE_AVAILABLE = 1,
+  UPDATE_GOING = 2,
+  UPDATE_COMPLETE = 3,
+  ERROR = 4
+} update_status_t;
+
+
+
+
 extern bool needToStayAlive;
 extern bool rqtUpdate;
-extern int avblUpdate;
+extern update_status_t avblUpdate;
+
+
+
+
 
 class ESP32GithubOtaUpdate {
   public:
@@ -109,13 +125,13 @@ void ESP32GithubOtaUpdate::doFirmwareUpdate() {
 
     httpUpdate.onStart([](void) {
       needToStayAlive = 1;
-      avblUpdate = 2;
+      avblUpdate = UPDATE_GOING;
       DEBUG_ESP32GOA("[doFirmwareUpdate()]: Start downloading..\r\n");
     });
     httpUpdate.onEnd([](bool success) {
       DEBUG_ESP32GOA("[doFirmwareUpdate()]: Downloading ended.\r\n");
       needToStayAlive = 0;
-      avblUpdate = 3;
+      avblUpdate = UPDATE_COMPLETE;
       //if (success) SPIFFS.remove("/update");
     });
     httpUpdate.onProgress([](int progress, int total) {
@@ -186,7 +202,7 @@ void ESP32GithubOtaUpdate::checkForOTA()
     for (;;)
     {
       if(doVersionCheck()) { // aggiornamento disponibile 
-        avblUpdate = 1;
+        avblUpdate = UPDATE_AVAILABLE;
         Serial.println("UpdateAvailable");
         if (rqtUpdate){
           Serial.println("UserRequestUpdate");
@@ -200,10 +216,10 @@ void ESP32GithubOtaUpdate::checkForOTA()
 void ESP32GithubOtaUpdate::checkOTAOnce()
 {
   if(doVersionCheck()) { // aggiornamento disponibile 
-    avblUpdate = 1;
-    Serial.println("UpdateAvailable");
+    avblUpdate = UPDATE_AVAILABLE;
+    DEBUG_ESP32GOA("[checkOTAOnce]: UpdateAvailable %d\n", avblUpdate);
     if (rqtUpdate){
-      Serial.println("UserRequestUpdate");
+      DEBUG_ESP32GOA("[checkOTAOnce]: UserRequestUpdate\n");
       // doFirmwareUpdate();
     }
   }

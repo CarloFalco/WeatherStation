@@ -1,6 +1,8 @@
 #include <ESP32Time.h>
-#include "UtilitiesFcn.h"
+#include <WiFiClientSecure.h>
 
+#include "UtilitiesFcn.h"
+#include "../../src/secret.h"
 /*
 Eeprom_Data_Type eepromData = {
       String(""),
@@ -13,6 +15,23 @@ Eeprom_Data_Type eepromData = {
       14   
 };
 */
+
+void setupWiFi() {
+
+  WiFi.setSleep(false); 
+  WiFi.setAutoReconnect(true);
+
+  // Connect to WiFi network
+  WiFi.begin(ssid, password);
+
+  // Wait for connection
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(100);
+  }
+  log_d("Connected to %s\t IP address: %s", ssid, WiFi.localIP().toString().c_str());
+
+}
+
 
 void setup_rtc_time(ESP32Time *rtc){
     // Configurazione del fuso orario
@@ -32,7 +51,6 @@ void setup_rtc_time(ESP32Time *rtc){
 
 }
 
-
 void check_DST(ESP32Time *rtc) {
   // Regole per l'ora legale in Europa
   static bool firstTimeHere = true;
@@ -45,8 +63,13 @@ void check_DST(ESP32Time *rtc) {
   int day = dt.tm_mday;
   int hour = dt.tm_hour;
   int dayOfWeek = dt.tm_wday;
+  
+  log_d("Month: %d", month);
+  log_d("Day: %d", day);
+  log_d("Hour: %d", hour);
+  log_d("DayOfWeek: %d", dayOfWeek);
   /*
-    Serial.println("Month: " + String(month));   // (String) returns time with specified format
+    Serial.println();   // (String) returns time with specified format
     Serial.println("day: " + String(day));   // (String) returns time with specified format
     Serial.println("hour: " + String(hour));   // (String) returns time with specified format
     Serial.println("dayOfWeek: " + String(dayOfWeek));   // (String) returns time with specified format
@@ -54,6 +77,7 @@ void check_DST(ESP32Time *rtc) {
 
 
   if (month == 3) {
+    log_d("month == 3: ");
     bool lastSunday = (31 - day)< 7;
     if ((lastSunday && dayOfWeek == 0 && hour >= 2)  && (SolarTime == false || firstTimeHere == true)) {
       // imposto l'ora legale facendo il tempo attuale piu 1h in millisecond
@@ -65,11 +89,13 @@ void check_DST(ESP32Time *rtc) {
       firstTimeHere = false;
     }
   } else if (month == 10) {
+    log_d("month == 10: ");
     // Calcola l'ultima domenica di ottobre
     bool lastSunday = (31 - day)< 7;
     // Serial.println("lastSunday: " + String(lastSunday));   // (String) returns time with specified format
     
     if ( (lastSunday && dayOfWeek == 0 && hour >= 3)  && (SolarTime == true || firstTimeHere == true)) {
+      log_d("month == 10: ");
       // imposto l'ora legale facendo il tempo attuale piu 1h in millisecond
       rtc->setTime(rtc->getEpoch()-(60*60)); 
       // variabile che indica se sono con l'orario solare o legale
@@ -77,6 +103,7 @@ void check_DST(ESP32Time *rtc) {
       firstTimeHere = false;
     }
   }
+
 }
 
 // FUNZIONI RELATIVE ALLA EEPROM
@@ -116,4 +143,58 @@ void do_eprom_write() {
   EEPROM.put(0, eepromData);
   EEPROM.commit();
   EEPROM.end();
+}
+
+
+// Funzioni relative al led
+
+Led::Led(byte pin){
+  this->pin = pin;
+}
+
+void Led::init(){
+  pinMode(pin, OUTPUT);
+  off();
+}
+
+void Led::init(byte defaultState){
+  pinMode(pin, OUTPUT);
+  if (defaultState==HIGH){
+    on();
+  }else{
+    off();
+  }
+}
+
+void Led::on() {
+  neopixelWrite(pin,64,64,64);
+  sts = 1;
+}
+
+void Led::off() {
+  neopixelWrite(pin,0,0,0);
+  sts = 0;
+}
+
+void Led::toggle(){
+  int sts_led = pinStatus();
+  if (sts_led == 1){
+    off();
+  }else{
+    on();
+  }  
+}
+
+void Led::red(){
+  neopixelWrite(pin,luminosity,0,0);
+}
+void Led::green(){
+  neopixelWrite(pin,0,luminosity,0);
+}
+void Led::blue(){
+  neopixelWrite(pin,0,0,luminosity);
+}
+
+int Led::pinStatus(){
+  return sts;
 }
