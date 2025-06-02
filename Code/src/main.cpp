@@ -1,23 +1,37 @@
-#define ENABLE_ESP32_GITHUB_OTA_UPDATE_DEBUG Uncomment to enable logs.
+//#define ENABLE_ESP32_GITHUB_OTA_UPDATE_DEBUG Uncomment to enable logs.
 
 #include <Arduino.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <ESP32Time.h>
 
-
 // My library 
+
+#include "configuration.h"
+
 #include "HttpReleaseUpdate.h"
 #include "ESP32GithubOtaUpdate.h"
 #include "secret.h"
-#include "UtilitiesFcn.h"
+#include "UtilitiesFcn.h" 
 
 /* TODO: requirements
 
--> impostazione tempo e fuso orario                                   # [=========>]
--> Creaziione delle funzioni legate al risveglio della centralina     # [=========>]
--> creazione dei task delle                                           # [==========]
+-> Aggiornamento Via GIT
+
+-> Creaziione delle funzioni legate al risveglio della centralina     # [==>        ]
+  -> Risveglio per pioggia
+
+  -> Risveglio per mancanza di alimentazione 
+    -> avvio tramite pagina web, se non trovo gia le credenziali
+    -> impostazione tempo e fuso orario                                   # [=>]
+    
+  -> Risveglio per normale funzionamento
+
+
 -> salvataggio informazioni su eeprom                                 # [=>        ]
+  -> credenziali wif
+
+
 
 -> Sensori stazione meteo:
     - 1: direzione vento                                # [=>        ]
@@ -31,21 +45,11 @@
 
 
 
-
-#define S_TO_uS_FACTOR 1000000ULL  /* Conversion factor for micro seconds to seconds */
-#define S_TO_mS_FACTOR 1000ULL  /* Conversion factor for milli seconds to seconds */
-#define mS_TO_uS_FACTOR 1000ULL  /* Conversion factor for milli seconds to micro seconds */
-
-#define TIME_TO_SLEEP  20  // s
-#define TASK_FAST 500  // Periodo del task in millisecondi
+#define WAKEUP_PIN_1 PIN_ANEMOMETER  // Pin RTC 33
+#define WAKEUP_PIN_2 PIN_RAINGAUGE  // Pin RTC 34
 
 
-#define WAKEUP_PIN_1 GPIO_NUM_10  // Pin RTC 33
-#define WAKEUP_PIN_2 GPIO_NUM_11  // Pin RTC 34
-
-
-
-Led led(97); // #define LED_BUILTIN 97
+Led led(LED_BUILTIN); // #define LED_BUILTIN 97
 
 
 RTC_DATA_ATTR int wakeUpCount = 0;
@@ -55,7 +59,7 @@ RTC_DATA_ATTR unsigned long wakeUpPreviousTime = 0;
 ESP32Time rtc(0);  // Dichiarazione di rtc
 
 
-
+// cose che mi servono per gestire OTA
 const char* OTA_FILE_LOCATION = "https://raw.githubusercontent.com/CarloFalco/WeatherStation/refs/heads/main/Code/firmware.bin";
 const char* VERSION_URL = "https://raw.githubusercontent.com/CarloFalco/WeatherStation/refs/heads/main/Code/version.txt";
 
@@ -75,7 +79,7 @@ PubSubClient mqtt_client(espClient);
 #include "ESP32Mqtt.h"
 
 
-TaskHandle_t task1Handle;
+TaskHandle_t task1Handle = NULL;
 
 void led_blink_task(void* pvParameters);
 void WakeUp_PowerLoss(void);
@@ -91,18 +95,25 @@ void setupOtaUpdate() {
   otaUpdate.setCurrentFirmwareVersion(current_fw_version);
   otaUpdate.setUpdateCheckInterval(60); // Check every 60 seconds.
   otaUpdate.checkOTAOnce();
-  //otaUpdate.begin();
+  //otaUpdate.begin();   // Uncomment this raw to enable ota update
 }
 
 void setup() {
 
   // pin configuration
-  pinMode(WAKEUP_PIN_1, INPUT_PULLDOWN);
-  pinMode(WAKEUP_PIN_2, INPUT_PULLDOWN);
+  pinMode(PIN_ANEMOMETER, INPUT); // pinMode(PIN_ANEMOMETER, INPUT_PULLDOWN);
+  pinMode(PIN_RAINGAUGE, INPUT);
+
+  pinMode(PIN_5V, OUTPUT);
+  pinMode(PIN_3V, OUTPUT);
+
+
   int count = 0;
   Serial.begin(115200);
   delay(100);
+
   if (!Serial) {led.init();}
+
   while (!Serial) { // wait for serial port to connect. Needed for native USB
     count++; 
     delay(100);
@@ -132,13 +143,11 @@ void setup() {
 
 }
 
-
 void loop(){
 
-    if (needsToStayActive == 0){
-    esp_sleep_wakeup_cause_t wakeUpRsn = esp_sleep_get_wakeup_cause();  
-    uint64_t timeToNextWakeUp = TIME_TO_SLEEP * S_TO_uS_FACTOR;
-
+  if (needsToStayActive == 0){
+  esp_sleep_wakeup_cause_t wakeUpRsn = esp_sleep_get_wakeup_cause();  
+  uint64_t timeToNextWakeUp = TIME_TO_SLEEP * S_TO_uS_FACTOR;
     if (wakeUpRsn == ESP_SLEEP_WAKEUP_EXT0 || wakeUpRsn == ESP_SLEEP_WAKEUP_EXT1) {
       delay(1000);
       log_d("[Interrupt]: wakeUpPreviousTime: %s", String(wakeUpPreviousTime));
@@ -152,7 +161,7 @@ void loop(){
     }
 
     if (wakeUpRsn == ESP_SLEEP_WAKEUP_TIMER) {
- 
+
       vTaskDelete(task1Handle);
       task1Handle = NULL;  // Resetta l'handle dopo l'eliminazione
       wakeUpCount = 0;
@@ -164,14 +173,21 @@ void loop(){
 
       led.off();
     }
+    
     if (wakeUpRsn == ESP_SLEEP_WAKEUP_UNDEFINED){
+      
+      String dataTime = rtc.getTime("%A, %B %d %Y %H:%M:%S");
+      log_i("%s", dataTime.c_str());
+
       wakeUpPreviousTime = rtc.getEpoch();
+      
     }
 
-    esp_sleep_enable_ext1_wakeup((1ULL << WAKEUP_PIN_1) | (1ULL << WAKEUP_PIN_2), ESP_EXT1_WAKEUP_ANY_HIGH);
-
+    esp_sleep_enable_ext1_wakeup((1ULL << WAKEUP_PIN_1) | (1ULL << WAKEUP_PIN_2), ESP_EXT1_WAKEUP_ANY_LOW);
     // Configuriamo il wakeup tramite timer
+
     esp_sleep_enable_timer_wakeup(timeToNextWakeUp);
+
     print_d("[loop()]: Entrando in modalità sleep...");
     if(Serial) {
       Serial.flush();
@@ -182,7 +198,6 @@ void loop(){
 
 
 }
-
 
 void WakeUp_PowerLoss(void){
   print_d("[WakeUp_PowerLoss()]: Wake Up caused by powerloss");
@@ -208,9 +223,9 @@ void WakeUp_Timer(void){
   log_d("[WakeUp_Timer()]: Wake Up caused by timer");
   led.init();
   
-  setupWiFi(); 
-  setupOtaUpdate();
-  mqtt_init();
+  //setupWiFi(); 
+  //setupOtaUpdate();
+  //mqtt_init();
 
   xTaskCreate(led_blink_task, "LED blink task", 2048, NULL, 1, &task1Handle);   // in questo punto devo andarmi a definire tutti i task
   needsToStayActive = 1;
@@ -226,17 +241,25 @@ void led_blink_task(void* pvParameters) {
     // Esegui il codice del task 1
     mqtt_client.loop();
 
+    led.toggle();
+    // led.blue();
+    count_iter ++;
+
+    if (count_iter == 1){
+      digitalWrite(PIN_3V, HIGH);
+    }
+
     if (count_iter == 10) {
       String payload = "{\"msg\": \"pippo\", \"Value\": \"" + String(avblUpdate) + "\"}";
       mqtt_client.publish("upd_avbl", payload.c_str(), 1);  
       log_d("msg: %d", avblUpdate);
+      digitalWrite(PIN_5V, HIGH);  // turn the 5V
+      digitalWrite(PIN_3V, LOW);
+
     }
 
-
-    led.toggle();
-    // led.blue();
-    count_iter ++;
-    if (count_iter > 20){      
+    if (count_iter > 20){    
+      digitalWrite(PIN_5V, LOW);  // turn the 5V  
       needsToStayActive = 0;
     }
 

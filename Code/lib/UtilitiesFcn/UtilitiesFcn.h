@@ -5,6 +5,8 @@
 #include <EEPROM.h>
 
 
+
+
 #define DEBUG_LEVEL 5
 
 #if DEBUG_LEVEL == 1 // ERRORE
@@ -31,10 +33,11 @@
 void setupWiFi();
 void setup_rtc_time(ESP32Time *);
 void check_DST(ESP32Time *);
+bool isLegalTime(int , int , int , int );
+
 
 void do_eprom_read();
 void do_eprom_write();
-
 
 typedef struct {
   String Eeprom_sData;  
@@ -44,8 +47,8 @@ typedef struct {
   bool Eeprom_bData1;
   bool Eeprom_bData2;
   bool Eeprom_bData3;    
-  int Eeprom_iData1;        // quantità di cibo
-  int eprom_good;        // quantità di cibo
+  int Eeprom_iData1;        // 
+  int eprom_good;        // check eeprom integrity
 } Eeprom_Data_Type;
 
 extern Eeprom_Data_Type eepromData;

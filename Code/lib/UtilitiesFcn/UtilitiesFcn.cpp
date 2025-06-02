@@ -16,6 +16,14 @@ Eeprom_Data_Type eepromData = {
 };
 */
 
+
+
+/** * @brief Configura la connessione WiFi.
+ * 
+ * Questa funzione si occupa di configurare la connessione WiFi del dispositivo.
+ * Inizializza il WiFi, disabilita il sonno e imposta la riconnessione automatica.
+ * Quindi, avvia la connessione al network specificato e attende fino a quando non è connesso.
+ */
 void setupWiFi() {
 
   WiFi.setSleep(false); 
@@ -33,6 +41,16 @@ void setupWiFi() {
 }
 
 
+// FUNZIONI RELATIVE ALLA RTC
+
+/**
+ * @brief Configura l'orologio in tempo reale (RTC) e imposta il fuso orario.
+ * 
+ * Questa funzione configura l'orologio in tempo reale utilizzando NTP per ottenere l'ora corrente.
+ * Imposta il fuso orario e verifica se è necessario applicare l'ora legale.
+ * 
+ * @param rtc Puntatore all'oggetto ESP32Time che rappresenta l'orologio in tempo reale.
+ */
 void setup_rtc_time(ESP32Time *rtc){
     // Configurazione del fuso orario
     configTime(0, 0, "pool.ntp.org", "time.nist.gov");
@@ -51,6 +69,17 @@ void setup_rtc_time(ESP32Time *rtc){
 
 }
 
+
+/**
+ * @brief Controlla se è necessario applicare l'ora legale (DST) e regola l'orario di conseguenza.
+ * 
+ * Questa funzione verifica se l'ora corrente è in ora legale o solare e regola l'orario di conseguenza.
+ * Le regole per l'ora legale in Europa sono:
+ * - Inizio: ultima domenica di marzo alle 2:00 AM
+ * - Fine: ultima domenica di ottobre alle 3:00 AM
+ * 
+ * @param rtc Puntatore all'oggetto ESP32Time che rappresenta l'orologio in tempo reale.
+ */
 void check_DST(ESP32Time *rtc) {
   // Regole per l'ora legale in Europa
   static bool firstTimeHere = true;
@@ -63,48 +92,92 @@ void check_DST(ESP32Time *rtc) {
   int day = dt.tm_mday;
   int hour = dt.tm_hour;
   int dayOfWeek = dt.tm_wday;
-  
-  log_d("Month: %d", month);
-  log_d("Day: %d", day);
-  log_d("Hour: %d", hour);
-  log_d("DayOfWeek: %d", dayOfWeek);
-  /*
-    Serial.println();   // (String) returns time with specified format
-    Serial.println("day: " + String(day));   // (String) returns time with specified format
-    Serial.println("hour: " + String(hour));   // (String) returns time with specified format
-    Serial.println("dayOfWeek: " + String(dayOfWeek));   // (String) returns time with specified format
-  */
+
+  if (firstTimeHere && isLegalTime(month, day, hour, dayOfWeek)){
+    SolarTime = false; 
+    firstTimeHere = false;
+    rtc->setTime(rtc->getEpoch()+(60*60));
+  }
 
 
   if (month == 3) {
     log_d("month == 3: ");
     bool lastSunday = (31 - day)< 7;
-    if ((lastSunday && dayOfWeek == 0 && hour >= 2)  && (SolarTime == false || firstTimeHere == true)) {
+
+    if ((lastSunday && dayOfWeek == 0 && hour >= 2  && SolarTime == true)) {
       // imposto l'ora legale facendo il tempo attuale piu 1h in millisecond
-      
+  
       // Serial.println("epoch time: " + String(rtc->getEpoch())); // (String) returns time
       rtc->setTime(rtc->getEpoch()+(60*60)); 
       // variabile che indica se sono con l'orario solare o legale
-      SolarTime = true; 
-      firstTimeHere = false;
+      SolarTime = false; 
     }
+
   } else if (month == 10) {
     log_d("month == 10: ");
     // Calcola l'ultima domenica di ottobre
     bool lastSunday = (31 - day)< 7;
     // Serial.println("lastSunday: " + String(lastSunday));   // (String) returns time with specified format
     
-    if ( (lastSunday && dayOfWeek == 0 && hour >= 3)  && (SolarTime == true || firstTimeHere == true)) {
+    if ( (lastSunday && dayOfWeek == 0 && hour >= 3 && SolarTime == false)) {
       log_d("month == 10: ");
       // imposto l'ora legale facendo il tempo attuale piu 1h in millisecond
       rtc->setTime(rtc->getEpoch()-(60*60)); 
       // variabile che indica se sono con l'orario solare o legale
-      SolarTime = false; 
-      firstTimeHere = false;
+      SolarTime = true; 
     }
   }
+}
+
+/**
+ * @brief Verifica se l'ora è legale in base al mese, giorno, ora e giorno della settimana.
+ * 
+ * Questa funzione determina se l'ora corrente è legale in base alle regole dell'ora legale.
+ * Le regole sono:
+ * - L'ora legale inizia l'ultima domenica di marzo alle 2:00 AM.
+ * - L'ora legale termina l'ultima domenica di ottobre alle 3:00 AM.
+ * 
+ * @param month Mese corrente (1-12).
+ * @param day Giorno del mese (1-31).
+ * @param hour Ora del giorno (0-23).
+ * @param dow Giorno della settimana (0=Sunday, 1=Monday, ..., 6=Saturday).
+ * @return true Se l'ora è legale.
+ * @return false Se l'ora non è legale.
+ */
+bool isLegalTime(int month, int day, int hour, int dow) {
+
+  // Calcola il giorno della prima domenica di marzo
+  int lastSundayMarch = 31 - dow; // valido solo se chiamato a marzo
+
+  // Calcola il giorno della prima domenica di ottobre
+  int lastSundayOctober = 31 - dow; // valido solo se chiamato a ottobre
+
+
+  if (month < 3 || month > 10) {
+    return false; // inverno
+  }
+
+  if (month > 3 && month < 10) {
+    return true; // estate
+  }
+
+  if (month == 3) {
+    if (day > lastSundayMarch) return true;
+    if (day < lastSundayMarch) return false;
+    return hour >= 3; // proprio il giorno del cambio
+  }
+
+  if (month == 10) {
+    if (day < lastSundayOctober) return true;
+    if (day > lastSundayOctober) return false;
+    return hour < 2; // fino alle 2:59 è ancora ora legale
+  }
+
+  return false;
 
 }
+
+
 
 // FUNZIONI RELATIVE ALLA EEPROM
 void do_eprom_read() {
@@ -147,16 +220,13 @@ void do_eprom_write() {
 
 
 // Funzioni relative al led
-
 Led::Led(byte pin){
   this->pin = pin;
 }
-
 void Led::init(){
   pinMode(pin, OUTPUT);
   off();
 }
-
 void Led::init(byte defaultState){
   pinMode(pin, OUTPUT);
   if (defaultState==HIGH){
@@ -165,17 +235,14 @@ void Led::init(byte defaultState){
     off();
   }
 }
-
 void Led::on() {
   neopixelWrite(pin,64,64,64);
   sts = 1;
 }
-
 void Led::off() {
   neopixelWrite(pin,0,0,0);
   sts = 0;
 }
-
 void Led::toggle(){
   int sts_led = pinStatus();
   if (sts_led == 1){
@@ -184,7 +251,6 @@ void Led::toggle(){
     on();
   }  
 }
-
 void Led::red(){
   neopixelWrite(pin,luminosity,0,0);
 }
@@ -194,7 +260,12 @@ void Led::green(){
 void Led::blue(){
   neopixelWrite(pin,0,0,luminosity);
 }
-
 int Led::pinStatus(){
+
   return sts;
 }
+
+
+
+
+
