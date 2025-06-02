@@ -17,6 +17,9 @@ Eeprom_Data_Type eepromData = {
 */
 
 
+float matLinInt(float x1, float x2, float y1, float y2, float x0){
+  return y1 + (x0 - x1) * (y2 - y1) / (x2 - x1);
+}
 
 /** * @brief Configura la connessione WiFi.
  * 

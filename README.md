@@ -72,5 +72,12 @@ TVOC
 aggingere la scrittura su sd con time stamp 
 
 
+// per generare la documentazione
+doxygen Doxyfile
+cd docs/latex
+pdflatex refman.tex
+pdflatex refman.tex
+q
+
 
 

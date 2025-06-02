@@ -6,16 +6,19 @@
 #include <ESP32Time.h>
 
 // My library 
-
+#include "documentation.h"
 #include "configuration.h"
-#include "power.h"
-
-#include "HttpReleaseUpdate.h"
-#include "ESP32GithubOtaUpdate.h"
 #include "secret.h"
 #include "UtilitiesFcn.h"
 
+
+
+#include "HttpReleaseUpdate.h"
+#include "ESP32GithubOtaUpdate.h"
 #include "ESP32Mqtt.h"
+
+#include "AllSensor.h"
+
 /** 
  * @file main.cpp
  * @brief Descrizione generale del programma.
@@ -43,7 +46,7 @@
  * 
  *   - 2: Risveglio per mancanza di alimentazione 
  *     - avvio tramite pagina web, se non trovo gia le credenziali
- *     - impostazione tempo e fuso orario                                  
+ *     - impostazione tempo e fuso orario (possibile bug legato al orario primo risveglio)                                 
  *     
  *   - 3: Risveglio per normale funzionamento
  * 
@@ -81,8 +84,6 @@ RTC_DATA_ATTR unsigned long wakeUpPreviousTime = 0;
 RTC_DATA_ATTR update_status_t avblUpdate = NO_UPDATE; // -> questa variabile dovrebbe essere mantenuta tra un accensione e l'altra
 RTC_DATA_ATTR bool rqtUpdate = false;
 
-
-
 bool needToStayAlive = 0;
 
 
@@ -91,6 +92,10 @@ ESP32GithubOtaUpdate otaUpdate;
 WiFiClientSecure espClient;
 PubSubClient mqtt_client(espClient);
 ESP32Time rtc(0);  // Dichiarazione di rtc
+
+// SENSORI
+INA3211 ina;
+
 
 // Definizione dei TASK
 TaskHandle_t task1Handle = NULL;
@@ -107,31 +112,20 @@ void setup() {
   pinMode(PIN_3V, OUTPUT);
 
 
+
   int count = 0;
   Serial.begin(115200);
   delay(100);
 
-  if (!Serial) {led.init();}
 
-  while (!Serial) { // wait for serial port to connect. Needed for native USB
-    count++; 
-    delay(100);
-    led.toggle();   
-    if (count>=10) {
-      led.off();
-      break;
-    }
-  }
-
-  print_i("[setup()]: WelcomeToNewBuild");
-  print_d("[setup()]: Wakeup Count: " + String(wakeUpCount));  
-
+  log_i("[setup()]: WelcomeToNewBuild");
+  log_d("[setup()]: Wakeup Count: ", String(wakeUpCount));  
 
 
   // scopro il motivo del risveglio
   esp_sleep_wakeup_cause_t wakeUpRsn = esp_sleep_get_wakeup_cause();  
 
-  print_d("[setup()]: wakeup reason num: " + String(wakeUpRsn));
+  log_d("[setup()]: wakeup reason num: ", String(wakeUpRsn));
 
   // se mi sono svegliato per un interrupt di un pin (vale sia il primo metodo che il secondo)
   if (wakeUpRsn == ESP_SLEEP_WAKEUP_EXT0 || wakeUpRsn == ESP_SLEEP_WAKEUP_EXT1) {WakeUp_Interrupt();}
@@ -147,7 +141,7 @@ void setup() {
 
 void loop(){
 
-  if (needsToStayActive == 0){
+  if (needsToStayActive == 0 && avblUpdate != UPDATE_GOING){
   esp_sleep_wakeup_cause_t wakeUpRsn = esp_sleep_get_wakeup_cause();  
   uint64_t timeToNextWakeUp = TIME_TO_SLEEP * S_TO_uS_FACTOR;
     if (wakeUpRsn == ESP_SLEEP_WAKEUP_EXT0 || wakeUpRsn == ESP_SLEEP_WAKEUP_EXT1) {
@@ -190,7 +184,7 @@ void loop(){
 
     esp_sleep_enable_timer_wakeup(timeToNextWakeUp);
 
-    print_d("[loop()]: Entrando in modalità sleep...");
+    log_d("[loop()]: Entrando in modalità sleep...");
     if(Serial) {
       Serial.flush();
       }
@@ -204,7 +198,7 @@ void loop(){
 
 void WakeUp_PowerLoss(void){
 
-  print_d("[WakeUp_PowerLoss()]: Wake Up caused by powerloss");
+  log_d("[WakeUp_PowerLoss()]: Wake Up caused by powerloss");
   setupWiFi(); // setup wifi connection
   // setup time
   setup_rtc_time(&rtc);
@@ -215,10 +209,10 @@ void WakeUp_PowerLoss(void){
 }
 
 void WakeUp_Interrupt(void){
-  print_d("[WakeUp_Interrupt()]: Wake Up caused by interrupt");
+  log_d("[WakeUp_Interrupt()]: Wake Up caused by interrupt");
   led.init();
   wakeUpCount ++;
-  print_d("[WakeUp_Interrupt()]: Set led to RED");
+  log_d("[WakeUp_Interrupt()]: Set led to RED");
   led.red();
 }
 
@@ -228,11 +222,11 @@ void WakeUp_Timer(void){
   
   setupWiFi(); 
   mqtt_init();
-  setupOtaUpdate();
 
   xTaskCreate(led_blink_task, "LED blink task", 2048, NULL, 1, &task1Handle);   // in questo punto devo andarmi a definire tutti i task
   needsToStayActive = 1;
 
+  otaUpdate.checkOTAOnce();
 
 }
 
@@ -248,33 +242,60 @@ void led_blink_task(void* pvParameters) {
     // led.blue();
     count_iter ++;
 
-    if (count_iter == 1){
-      digitalWrite(PIN_3V, HIGH);
+    switch (count_iter) {
+      case 1: { // primo giro accendo i pin 5V e 3V
+        log_d("[led_blink_task()]: turn on 5V and 3V");
+        digitalWrite(PIN_5V, HIGH);  
+        digitalWrite(PIN_3V, HIGH);
+        break;
+      }
+      case 2: {
+        log_d("[led_blink_task()]: Setup all sensors");
+        // --------- SETUP INA3221 ---------- //
+        ina.begin(INA_ADDRESS);
+        break;
+      }
+      case 3: {
+        log_d("[led_blink_task()]: Print Sensor");
+        printSensor();
+        break;
+      }
+      case 10: {
+        log_d("[led_blink_task()]: senn decide to publish the value of avblUpdate");
+        String payload = "{\"msg\": \"pippo\", \"Value\": \"" + String(avblUpdate) + "\"}";
+        mqtt_client.publish("upd_avbl", payload.c_str(), 1);  
+        log_d("msg: %d", avblUpdate);
+        break;
+      }
+      case 20: {
+        log_d("[led_blink_task()]: we can turn off 5V and 3V");
+        digitalWrite(PIN_5V, LOW);
+        digitalWrite(PIN_3V, LOW);
+        needsToStayActive = 0;
+        break;
+      }
+      default:
+        // do nothing
+        break;
     }
 
-    if (count_iter == 10) {
-      String payload = "{\"msg\": \"pippo\", \"Value\": \"" + String(avblUpdate) + "\"}";
-      mqtt_client.publish("upd_avbl", payload.c_str(), 1);  
-      log_d("msg: %d", avblUpdate);
-      digitalWrite(PIN_5V, HIGH);  // turn the 5V
-      digitalWrite(PIN_3V, LOW);
-
-    }
-
-    if (count_iter > 20){    
-      digitalWrite(PIN_5V, LOW);  // turn the 5V  
-      needsToStayActive = 0;
-    }
-
+    
     vTaskDelayUntil(&lastWakeTime, period);
   }
 }
 
-void setupOtaUpdate() {
-  otaUpdate.setOTADownloadUrl(OTA_FILE_LOCATION);
-  otaUpdate.setVersionCheckUrl(VERSION_URL);
-  otaUpdate.setCurrentFirmwareVersion(current_fw_version);
-  otaUpdate.setUpdateCheckInterval(60); // Check every 60 seconds.
-  otaUpdate.checkOTAOnce();
-  otaUpdate.begin();   // Uncomment this raw to enable ota update
+
+
+void printSensor(void){
+
+  for (uint8_t i = 0; i < 3; i++) {
+    float voltage = ina.getBusVoltage(i);
+    float current = ina.getCurrentAmps(i) * 1000; // Convert to mA
+    Serial.print("Channel " + String(i) + ": ");
+    Serial.print("Voltage = " + String(voltage) + "[V] ");
+    Serial.println("Current = " + String(current) + " [mA]");
+  }
+  Serial.println("getPower: " + String(ina.getPower(2)));
+  Serial.println("SOC = " + String(ina.vbToSoc(ina.getBusVoltage(1)*1000)) + " [ %]");
+
 }

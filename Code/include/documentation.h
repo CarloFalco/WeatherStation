@@ -1,13 +1,5 @@
-#ifndef POWER_H
-#define POWER_H
-
-/** * @brief Avvio dell'aggiornamento OTA.
- * 
- * Questa funzione configura l'URL per il download dell'aggiornamento OTA, l'URL per il controllo della versione,
- * la versione corrente del firmware e l'intervallo di controllo degli aggiornamenti.
-*
- */
-void setupOtaUpdate();
+#ifndef DOCUMENT_H
+#define DOCUMENT_H
 
 
 /**
@@ -48,6 +40,7 @@ void WakeUp_Interrupt(void);
  * - Crea un task per il lampeggio del LED (`led_blink_task`).
  * - Imposta la variabile `needsToStayActive` a 1 per indicare che il dispositivo deve rimanere attivo.
  */
+ 
 void WakeUp_Timer(void);
 
 /** * @brief Task per il lampeggio del LED.
@@ -59,5 +52,8 @@ void WakeUp_Timer(void);
  * @param pvParameters Parametri del task (non utilizzati in questo caso).
 */
 void led_blink_task(void* pvParameters);
+
+
+void printSensor(void);
 
  #endif

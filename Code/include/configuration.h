@@ -4,6 +4,29 @@
 #define _TYPE_CONVERSION_H_
 
 
+#define DEBUG_LEVEL 5
+
+#if DEBUG_LEVEL == 1 // ERRORE
+  #define print_e(x) if(Serial) Serial.print("ERROR: "); Serial.println(x)
+  #define print_d(x) 
+  #define print_i(x) 
+#elif DEBUG_LEVEL == 4 // DEBUG
+  #define print_e(x) if(Serial) Serial.print("ERROR: "); Serial.println(x)
+  #define print_d(x) if(Serial) Serial.print("DEBUG: "); Serial.println(x)
+  #define print_i(x) // Non fare nulla
+#elif DEBUG_LEVEL == 5 // VERBOSE
+  #define print_e(x) if(Serial) Serial.print("ERROR: "); Serial.println(x)
+  #define print_d(x) if(Serial) Serial.print("DEBUG: "); Serial.println(x)
+  #define print_i(x) if(Serial) Serial.print("INFOR: "); Serial.println(x)
+#else // NONE
+  #define print_e(x) // Non fare nulla
+  #define print_d(x) // Non fare nulla
+  #define print_i(x) // Non fare nulla
+#endif
+
+
+
+
 #define S_TO_uS_FACTOR 1000000UL                /* Conversion factor for seconds to micro seconds */
 #define uS_TO_S_FACTOR (1.0 / S_TO_uS_FACTOR)   /* Conversion factor for micro seconds to seconds */
 
@@ -35,19 +58,17 @@
 #define TASK_FAST 500   // Task execution time in milliseconds
 
 
-// OTA
-const char* OTA_FILE_LOCATION = "https://raw.githubusercontent.com/CarloFalco/WeatherStation/refs/heads/main/Code/firmware.bin";
-const char* VERSION_URL = "https://raw.githubusercontent.com/CarloFalco/WeatherStation/refs/heads/main/Code/version.txt";
-
-const int current_fw_version = 2024010102;  // YYYYMMDDRR where R = release of the day
-
-
 // ANEMOMETER
 #define PIN_ANEMOMETER GPIO_NUM_19
 #define WAKEUP_PIN_1 PIN_ANEMOMETER  // Pin RTC 33
 
 #define ANEMOMETER_DIAMETER 80 * 2 * mm_TO_m_FACTOR
 #define TASK_ANEMOMETER 200  // Task execution time in milliseconds
+
+// WINDVANE
+#define AS5600_ADDRESS 0x36
+#define RAW_ANGLE 0x0C
+
 
 // RAINGAUGE
 #define PIN_RAINGAUGE GPIO_NUM_20
@@ -61,6 +82,36 @@ const int current_fw_version = 2024010102;  // YYYYMMDDRR where R = release of t
 #define CYCLE_RAIN_LENGTH 10 // tempo in secondi
 
 
+
+// TERMOMETER
+#define BME280_ADDRESS 0x76
+
+// GASSENSOR MICS6814   
+#define PIN_CO  ADC1_CHANNEL_4
+#define PIN_NO2 ADC1_CHANNEL_5
+#define PIN_NH3 ADC1_CHANNEL_6
+
+#define MAX_NH3 35
+#define MIN_NH3 25
+
+#define MAX_NO2 0.1
+#define MIN_NO2 0.021
+
+#define MAX_CO2 15000
+#define MIN_CO2 5000
+
+#define MAX_CO 100
+#define MIN_CO 20
+
+// GASSENSOR CCS811
+#define CCS811_ADDRESS 0x5A
+#define PIN_WAK GPIO_NUM_41
+// 0,3 mg/m³ ; 0,3 - 0,5 mg/m³; 0,5 - 1 mg/m³, 1 - 3 mg/m³, Oltre 3 mg/m³
+#define MAX_TVOC 600
+#define MIN_TVOC 100
+
+// GASSENSOR INA
+#define INA_ADDRESS 0x40
 
 
 // LED

@@ -97,9 +97,9 @@ class ESP32GithubOtaUpdate {
       "jjxDah2nGN59PRbxYvnKkKj9\n" \
       "-----END CERTIFICATE-----";
 
-  const char* _otaDownloadUrl; 
-  const char* _versionCheckUrl;
-  int _currentFirmwareVersion;
+  const char* _otaDownloadUrl = "https://raw.githubusercontent.com/CarloFalco/WeatherStation/refs/heads/main/Code/firmware.bin"; 
+  const char* _versionCheckUrl = "https://raw.githubusercontent.com/CarloFalco/WeatherStation/refs/heads/main/Code/version.txt";
+  int _currentFirmwareVersion = 2024010101; // YYYYMMDDRR where R = release of the day
   int _updateCheckInterval = 60; // 60 seconds.   
 };
 
@@ -172,13 +172,11 @@ void ESP32GithubOtaUpdate::doFirmwareUpdate() {
     httpUpdate.rebootOnUpdate(true);
 
     httpUpdate.onStart([](void) {
-      needToStayAlive = 1;
       avblUpdate = UPDATE_GOING;
       DEBUG_ESP32GOA("[doFirmwareUpdate()]: Start downloading..\r\n");
     });
     httpUpdate.onEnd([](bool success) {
       DEBUG_ESP32GOA("[doFirmwareUpdate()]: Downloading ended.\r\n");
-      needToStayAlive = 0;
       avblUpdate = UPDATE_COMPLETE;
       //if (success) SPIFFS.remove("/update");
     });
@@ -245,24 +243,10 @@ bool ESP32GithubOtaUpdate::doVersionCheck() {
   return isUpdateAvailable;
 }
 
-void ESP32GithubOtaUpdate::checkForOTA()
-{
-    for (;;)
-    {
-      if(doVersionCheck()) { // aggiornamento disponibile 
-        avblUpdate = UPDATE_AVAILABLE;
-        Serial.println("UpdateAvailable");
-        if (rqtUpdate){
-          Serial.println("UserRequestUpdate");
-          // doFirmwareUpdate();
-        }
-      }
-      vTaskDelay((_updateCheckInterval * 1000) / portTICK_PERIOD_MS);
-    }
-}
 
 void ESP32GithubOtaUpdate::checkOTAOnce()
 {
+  Serial.println("checkForOTAONCE");
   if(doVersionCheck()) { // aggiornamento disponibile 
     avblUpdate = UPDATE_AVAILABLE;
     DEBUG_ESP32GOA("[checkOTAOnce]: UpdateAvailable %d\n", avblUpdate);
@@ -270,7 +254,7 @@ void ESP32GithubOtaUpdate::checkOTAOnce()
 
     if (rqtUpdate){
       DEBUG_ESP32GOA("[checkOTAOnce]: UserRequestUpdate\n");
-      // doFirmwareUpdate();
+      doFirmwareUpdate();
     }
   }
 
@@ -295,6 +279,23 @@ void ESP32GithubOtaUpdate::setClock() {
   struct tm timeinfo;
   gmtime_r(&now, &timeinfo);
   DEBUG_ESP32GOA("Current time: %s\r\n", asctime(&timeinfo));
+}
+
+void ESP32GithubOtaUpdate::checkForOTA()
+{
+    for (;;){
+      
+      Serial.println("checkForOTA");
+      if(doVersionCheck()) { // aggiornamento disponibile 
+        avblUpdate = UPDATE_AVAILABLE;
+        Serial.println("UpdateAvailable");
+        if (rqtUpdate){
+          Serial.println("UserRequestUpdate");
+          // doFirmwareUpdate();
+        }
+      }
+      vTaskDelay((_updateCheckInterval * 1000) / portTICK_PERIOD_MS);
+    }
 }
 
 void ESP32GithubOtaUpdate::begin() {
