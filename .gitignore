@@ -35,3 +35,7 @@
 *.out
 *.app
 
+/Code/docs/latex/*.crt
+/Code/docs/latex/*.out
+/Code/docs/latex/*.tex
+/Code/docs

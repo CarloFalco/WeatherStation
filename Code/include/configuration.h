@@ -35,16 +35,23 @@
 #define TASK_FAST 500   // Task execution time in milliseconds
 
 
+// OTA
+const char* OTA_FILE_LOCATION = "https://raw.githubusercontent.com/CarloFalco/WeatherStation/refs/heads/main/Code/firmware.bin";
+const char* VERSION_URL = "https://raw.githubusercontent.com/CarloFalco/WeatherStation/refs/heads/main/Code/version.txt";
+
+const int current_fw_version = 2024010102;  // YYYYMMDDRR where R = release of the day
 
 
 // ANEMOMETER
 #define PIN_ANEMOMETER GPIO_NUM_19
+#define WAKEUP_PIN_1 PIN_ANEMOMETER  // Pin RTC 33
 
 #define ANEMOMETER_DIAMETER 80 * 2 * mm_TO_m_FACTOR
 #define TASK_ANEMOMETER 200  // Task execution time in milliseconds
 
 // RAINGAUGE
 #define PIN_RAINGAUGE GPIO_NUM_20
+#define WAKEUP_PIN_2 PIN_RAINGAUGE  // Pin RTC 34
 
 
 #define AREA_PLUVIOMETRO 63.25 //11.5 x 5.5 = 63.25 cm2

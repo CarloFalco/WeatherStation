@@ -1,6 +1,7 @@
 #include "ESP32Mqtt.h"
 #include "../../src/secret.h"
 
+
 void handlePaperinoTopic(const StaticJsonDocument<200>& doc) {
   const char* msg = doc["msg"];
   String ledStatusString = doc["LedSts"];
@@ -26,6 +27,7 @@ void handlePaperinoTopic(const StaticJsonDocument<200>& doc) {
 */
 }
 
+
 void handlePlutoTopic(const StaticJsonDocument<200>& doc) {
   const char* newMsg = doc["newMsg"];
   int newValue = doc["newValue"];
@@ -37,17 +39,21 @@ void handlePlutoTopic(const StaticJsonDocument<200>& doc) {
   Serial.println(newValue);
 }
 
+
 void handleUpdRqtTopic(const StaticJsonDocument<200>& doc) {
 
   int updValue = doc["updValue"];
 
-  Serial.print("Valore Update: ");
-  Serial.println(updValue);
+  log_d("[handleUpdRqtTopic()]: Message Value: %d\r\n", updValue);
+
   if (updValue == 1){
     rqtUpdate = true;
   } else {
     rqtUpdate = false;
   }
+
+  log_d("[handleUpdRqtTopic()]: Update Request: %d\r\n", rqtUpdate);
+
 
 }
 

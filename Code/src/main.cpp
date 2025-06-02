@@ -1,4 +1,4 @@
-//#define ENABLE_ESP32_GITHUB_OTA_UPDATE_DEBUG Uncomment to enable logs.
+#define ENABLE_ESP32_GITHUB_OTA_UPDATE_DEBUG // Uncomment to enable logs.
 
 #include <Arduino.h>
 #include <WiFiClientSecure.h>
@@ -8,95 +8,94 @@
 // My library 
 
 #include "configuration.h"
+#include "power.h"
 
 #include "HttpReleaseUpdate.h"
 #include "ESP32GithubOtaUpdate.h"
 #include "secret.h"
-#include "UtilitiesFcn.h" 
+#include "UtilitiesFcn.h"
 
-/* TODO: requirements
+#include "ESP32Mqtt.h"
+/** 
+ * @file main.cpp
+ * @brief Descrizione generale del programma.
+ * 
+ * @mainpage Documentazione del Progetto Arduino
+ * 
+ * @section intro Introduzione
+ * Questo è un progetto Arduino sviluppato con PlatformIO.
+ * 
+ * @section struttura Struttura del Codice
+ * - `src/` contiene il file `main.cpp`
+ * - `lib/` contiene librerie custom
+ * - `include/` contiene gli header globali
+*
+ * @section TASK
 
--> Aggiornamento Via GIT
-
--> Creaziione delle funzioni legate al risveglio della centralina     # [==>        ]
-  -> Risveglio per pioggia
-
-  -> Risveglio per mancanza di alimentazione 
-    -> avvio tramite pagina web, se non trovo gia le credenziali
-    -> impostazione tempo e fuso orario                                   # [=>]
-    
-  -> Risveglio per normale funzionamento
-
-
--> salvataggio informazioni su eeprom                                 # [=>        ]
-  -> credenziali wif
-
-
-
--> Sensori stazione meteo:
-    - 1: direzione vento                                # [=>        ]
-    - 2: intensita vento                                # [=>        ]
-    - 3: precipitazioni                                 # [=>        ]
-    - 4: temperatura e umidita                          # [=>        ]
-    - 5: umidita terreno                                # [=>        ]
-    
-
+ * @subsection Aggiornamento Via GIT
+ * 
+ * @subsection Creaziione delle funzioni legate al risveglio della centralina   
+ * Stato: **In sviluppo**  
+ * Completamento: **50%**  
+ * `[====>     ]`
+ * 
+ *   - 1: Risveglio per pioggia
+ * 
+ *   - 2: Risveglio per mancanza di alimentazione 
+ *     - avvio tramite pagina web, se non trovo gia le credenziali
+ *     - impostazione tempo e fuso orario                                  
+ *     
+ *   - 3: Risveglio per normale funzionamento
+ * 
+ * 
+ * @subsection salvataggio informazioni su eeprom        
+ * Stato: **In sviluppo**  
+ * Completamento: **50%**  
+ * `[====>     ]`                         
+ *  - 1: credenziali wif
+ * 
+ * 
+ * 
+ * @subsection Sensori stazione meteo:
+* Stato: **In sviluppo**  
+ * Completamento: **50%**  
+ * `[====>     ]`  
+ *     - 1: direzione vento                                 `[=>        ]`
+ *     - 2: intensita vento                                 `[=>        ]`
+ *     - 3: precipitazioni                                  `[=>        ]`
+ *     - 4: temperatura e umidita                           `[=>        ]`
+ *     - 5: umidita terreno                                 `[=>        ]`
+ *     
+ * 
 */
 
 
 
-#define WAKEUP_PIN_1 PIN_ANEMOMETER  // Pin RTC 33
-#define WAKEUP_PIN_2 PIN_RAINGAUGE  // Pin RTC 34
-
 
 Led led(LED_BUILTIN); // #define LED_BUILTIN 97
 
-
+// Variabili globali per la gestione del risveglio
 RTC_DATA_ATTR int wakeUpCount = 0;
 RTC_DATA_ATTR uint8_t needsToStayActive = 0; // probabilmente duplicato // TODO: verificare
 RTC_DATA_ATTR unsigned long wakeUpPreviousTime = 0;
+RTC_DATA_ATTR update_status_t avblUpdate = NO_UPDATE; // -> questa variabile dovrebbe essere mantenuta tra un accensione e l'altra
+RTC_DATA_ATTR bool rqtUpdate = false;
 
-ESP32Time rtc(0);  // Dichiarazione di rtc
 
 
-// cose che mi servono per gestire OTA
-const char* OTA_FILE_LOCATION = "https://raw.githubusercontent.com/CarloFalco/WeatherStation/refs/heads/main/Code/firmware.bin";
-const char* VERSION_URL = "https://raw.githubusercontent.com/CarloFalco/WeatherStation/refs/heads/main/Code/version.txt";
-
-const int current_fw_version = 2025010100;  // YYYYMMDDRR where R = release of the day
+bool needToStayAlive = 0;
 
 
 
 ESP32GithubOtaUpdate otaUpdate;
-bool needToStayAlive = 0;
-bool rqtUpdate = false;
-
-update_status_t avblUpdate = NO_UPDATE; // -> questa variabile dovrebbe essere mantenuta tra un accensione e l'altra
-
 WiFiClientSecure espClient;
 PubSubClient mqtt_client(espClient);
+ESP32Time rtc(0);  // Dichiarazione di rtc
 
-#include "ESP32Mqtt.h"
-
-
+// Definizione dei TASK
 TaskHandle_t task1Handle = NULL;
 
-void led_blink_task(void* pvParameters);
-void WakeUp_PowerLoss(void);
-void WakeUp_Timer(void);
-void WakeUp_Interrupt(void);
 
-
-
-
-void setupOtaUpdate() {
-  otaUpdate.setOTADownloadUrl(OTA_FILE_LOCATION);
-  otaUpdate.setVersionCheckUrl(VERSION_URL);
-  otaUpdate.setCurrentFirmwareVersion(current_fw_version);
-  otaUpdate.setUpdateCheckInterval(60); // Check every 60 seconds.
-  otaUpdate.checkOTAOnce();
-  //otaUpdate.begin();   // Uncomment this raw to enable ota update
-}
 
 void setup() {
 
@@ -128,6 +127,8 @@ void setup() {
   print_d("[setup()]: Wakeup Count: " + String(wakeUpCount));  
 
 
+
+  // scopro il motivo del risveglio
   esp_sleep_wakeup_cause_t wakeUpRsn = esp_sleep_get_wakeup_cause();  
 
   print_d("[setup()]: wakeup reason num: " + String(wakeUpRsn));
@@ -140,6 +141,7 @@ void setup() {
 
   // se mi sono svegliato causa mancanza di batteria riinizializzo l'rtc
   if (wakeUpRsn == ESP_SLEEP_WAKEUP_UNDEFINED) {WakeUp_PowerLoss();}
+
 
 }
 
@@ -199,10 +201,11 @@ void loop(){
 
 }
 
+
 void WakeUp_PowerLoss(void){
+
   print_d("[WakeUp_PowerLoss()]: Wake Up caused by powerloss");
-  setupWiFi(); 
-  
+  setupWiFi(); // setup wifi connection
   // setup time
   setup_rtc_time(&rtc);
 
@@ -223,9 +226,9 @@ void WakeUp_Timer(void){
   log_d("[WakeUp_Timer()]: Wake Up caused by timer");
   led.init();
   
-  //setupWiFi(); 
-  //setupOtaUpdate();
-  //mqtt_init();
+  setupWiFi(); 
+  mqtt_init();
+  setupOtaUpdate();
 
   xTaskCreate(led_blink_task, "LED blink task", 2048, NULL, 1, &task1Handle);   // in questo punto devo andarmi a definire tutti i task
   needsToStayActive = 1;
@@ -265,4 +268,13 @@ void led_blink_task(void* pvParameters) {
 
     vTaskDelayUntil(&lastWakeTime, period);
   }
+}
+
+void setupOtaUpdate() {
+  otaUpdate.setOTADownloadUrl(OTA_FILE_LOCATION);
+  otaUpdate.setVersionCheckUrl(VERSION_URL);
+  otaUpdate.setCurrentFirmwareVersion(current_fw_version);
+  otaUpdate.setUpdateCheckInterval(60); // Check every 60 seconds.
+  otaUpdate.checkOTAOnce();
+  otaUpdate.begin();   // Uncomment this raw to enable ota update
 }

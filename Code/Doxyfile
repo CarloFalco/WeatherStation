@@ -1,0 +1,28 @@
+# Nome del progetto
+PROJECT_NAME           = WeatherStation
+
+# Percorsi da analizzare
+INPUT = src include lib
+
+# Tipi di file da considerare
+FILE_PATTERNS          = *.h *.hpp *.cpp
+
+# Cerca anche dentro le sottocartelle
+RECURSIVE              = YES
+
+# Include tutto, anche se non è documentato
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+
+# Documentazione PDF
+GENERATE_HTML          = NO
+GENERATE_LATEX         = YES
+
+
+
+# Dove mettere l'output
+OUTPUT_DIRECTORY       = docs
+
+EXCLUDE_PATTERNS = */secret.cpp */secret.h
