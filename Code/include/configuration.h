@@ -4,28 +4,6 @@
 #define _TYPE_CONVERSION_H_
 
 
-#define DEBUG_LEVEL 5
-
-#if DEBUG_LEVEL == 1 // ERRORE
-  #define print_e(x) if(Serial) Serial.print("ERROR: "); Serial.println(x)
-  #define print_d(x) 
-  #define print_i(x) 
-#elif DEBUG_LEVEL == 4 // DEBUG
-  #define print_e(x) if(Serial) Serial.print("ERROR: "); Serial.println(x)
-  #define print_d(x) if(Serial) Serial.print("DEBUG: "); Serial.println(x)
-  #define print_i(x) // Non fare nulla
-#elif DEBUG_LEVEL == 5 // VERBOSE
-  #define print_e(x) if(Serial) Serial.print("ERROR: "); Serial.println(x)
-  #define print_d(x) if(Serial) Serial.print("DEBUG: "); Serial.println(x)
-  #define print_i(x) if(Serial) Serial.print("INFOR: "); Serial.println(x)
-#else // NONE
-  #define print_e(x) // Non fare nulla
-  #define print_d(x) // Non fare nulla
-  #define print_i(x) // Non fare nulla
-#endif
-
-
-
 
 #define S_TO_uS_FACTOR 1000000UL                /* Conversion factor for seconds to micro seconds */
 #define uS_TO_S_FACTOR (1.0 / S_TO_uS_FACTOR)   /* Conversion factor for micro seconds to seconds */
@@ -54,7 +32,7 @@
 #define PIN_3V GPIO_NUM_4 // Pin 4 del GPIO, che è il pin 3V3
 
 
-#define TIME_TO_SLEEP  20  // Time to sleep in seconds
+#define TIME_TO_SLEEP  10  // Time to sleep in seconds
 #define TASK_FAST 500   // Task execution time in milliseconds
 
 
@@ -110,7 +88,7 @@
 #define MAX_TVOC 600
 #define MIN_TVOC 100
 
-// GASSENSOR INA
+// CURRENT SENSOR INA
 #define INA_ADDRESS 0x40
 
 

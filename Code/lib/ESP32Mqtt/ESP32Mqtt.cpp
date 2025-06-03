@@ -26,8 +26,7 @@ void handlePaperinoTopic(const StaticJsonDocument<200>& doc) {
 void handlePlutoTopic(const StaticJsonDocument<200>& doc) {
   const char* newMsg = doc["newMsg"];
   int newValue = doc["newValue"];
-  log_d("[handlePlutoTopic]: Message: %s\r", newMsg);
-  log_d("[handlePlutoTopic]: Nuovo Valore: %d", newValue);
+  log_i("Message: %s | Nuovo Valore: %s", newMsg, newValue);
 
 }
 
@@ -40,30 +39,29 @@ void handleUpdRqtTopic(const StaticJsonDocument<200>& doc) {
   if (updValue == 1){ 
     rqtUpdate = true;
   }
-
-  log_d("[handleUpdRqtTopic()]: Message Value: %d\r", updValue);
-  log_d("[handleUpdRqtTopic()]: Update Request: %d\r", rqtUpdate);
+  log_i("Message Value: %d | Update Request: %s", updValue, rqtUpdate);
 
 }
 
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   
-
   char message[length + 1];
   memcpy(message, payload, length);
   message[length] = '\0';
 
-  // log_d("[mqttCallback]: Payload: %s\r", message);
-  Serial.print("Payload: ");
-  Serial.println(message);
+  // log_i("[mqttCallback]: Topic: %s ", topic);
+  // log_i("Payload: %s", messagePrint.c_str());
+  // Serial.print("Payload: ");
+  // Serial.println(message);
 
   StaticJsonDocument<200> doc;
   DeserializationError error = deserializeJson(doc, message);
 
   if (error) {
-    Serial.print("Errore nel parsing del JSON: ");
-    Serial.println(error.c_str());
+    log_e("[mqttCallback]: Errore nel parsing del JSON: %s", error.c_str());
+    // Serial.print("Errore nel parsing del JSON: ");
+    // Serial.println(error.c_str());
     return;
   }
 
@@ -78,17 +76,16 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 }
 
 void mqtt_init() {
-  mqtt_client.setCallback(mqttCallback);
 
-  log_v(leCaCrtMqtt);
+  mqtt_client.setCallback(mqttCallback);
   espClient.setCACert(leCaCrtMqtt);
   mqtt_client.setServer(mqtt_server, 8883);
 
   if (mqtt_client.connect(mqtt_client_id, mqtt_user, mqtt_pass)) {
-    Serial.println("MQTT connected");
-    if (mqtt_client.subscribe("paperino"))  { log_d("[mqttCallback]: Sottoscritto al topic 'paperino'");} 
-    if (mqtt_client.subscribe("pluto"))     { log_d("[mqttCallback]: Sottoscritto al topic 'pluto'");} 
-    if (mqtt_client.subscribe("upd_rqt"))   { log_d("[mqttCallback]: Sottoscritto al topic 'upd_rqt'");} 
+    log_d("MQTT connected");
+    // if (mqtt_client.subscribe("paperino"))  { log_d("Sottoscritto al topic 'paperino'");} 
+    // if (mqtt_client.subscribe("pluto"))     { log_d("Sottoscritto al topic 'pluto'");} 
+    // if (mqtt_client.subscribe("upd_rqt"))   { log_d("Sottoscritto al topic 'upd_rqt'");} 
 
   } else {
     log_e("MQTT connection failed, rc=%d", mqtt_client.state());

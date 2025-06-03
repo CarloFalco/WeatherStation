@@ -1,13 +1,22 @@
-#define ENABLE_ESP32_GITHUB_OTA_UPDATE_DEBUG // Uncomment to enable logs.
+// #define ENABLE_ESP32_GITHUB_OTA_UPDATE_DEBUG // Uncomment to enable logs.
 
 #include <Arduino.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <ESP32Time.h>
+#include <Wire.h>
+#include <SPI.h>
+#include <EEPROM.h>
+
+#include <Adafruit_BME280.h>
+#include <Adafruit_INA3221.h>
+//#include "MICS6814.h"
+//#include "SparkFunCCS811.h"
+//#include "Adafruit_PM25AQI.h"
+
 
 // My library 
 #include "documentation.h"
-#include "configuration.h"
 #include "secret.h"
 #include "UtilitiesFcn.h"
 
@@ -18,6 +27,8 @@
 #include "ESP32Mqtt.h"
 
 #include "AllSensor.h"
+
+#include "configuration.h"
 
 /** 
  * @file main.cpp
@@ -95,6 +106,8 @@ ESP32Time rtc(0);  // Dichiarazione di rtc
 
 // SENSORI
 INA3211 ina;
+Adafruit_BME280 bme; 
+
 
 
 // Definizione dei TASK
@@ -118,14 +131,14 @@ void setup() {
   delay(100);
 
 
-  log_i("[setup()]: WelcomeToNewBuild");
-  log_d("[setup()]: Wakeup Count: ", String(wakeUpCount));  
+  log_i("WelcomeToNewBuild");
+  log_d("Wakeup Count: ", String(wakeUpCount));  
 
 
   // scopro il motivo del risveglio
   esp_sleep_wakeup_cause_t wakeUpRsn = esp_sleep_get_wakeup_cause();  
 
-  log_d("[setup()]: wakeup reason num: ", String(wakeUpRsn));
+  log_d("wakeup reason num: ", String(wakeUpRsn));
 
   // se mi sono svegliato per un interrupt di un pin (vale sia il primo metodo che il secondo)
   if (wakeUpRsn == ESP_SLEEP_WAKEUP_EXT0 || wakeUpRsn == ESP_SLEEP_WAKEUP_EXT1) {WakeUp_Interrupt();}
@@ -184,7 +197,7 @@ void loop(){
 
     esp_sleep_enable_timer_wakeup(timeToNextWakeUp);
 
-    log_d("[loop()]: Entrando in modalità sleep...");
+    log_i("Entrando in modalità sleep...");
     if(Serial) {
       Serial.flush();
       }
@@ -230,6 +243,9 @@ void WakeUp_Timer(void){
 
 }
 
+
+
+
 void led_blink_task(void* pvParameters) {  
   TickType_t lastWakeTime = xTaskGetTickCount();
   const TickType_t period = pdMS_TO_TICKS(TASK_FAST);
@@ -241,34 +257,41 @@ void led_blink_task(void* pvParameters) {
     led.toggle();
     // led.blue();
     count_iter ++;
+    log_i("count_iter: %d", count_iter);
 
     switch (count_iter) {
       case 1: { // primo giro accendo i pin 5V e 3V
-        log_d("[led_blink_task()]: turn on 5V and 3V");
+        log_d(" turn on 5V and 3V");
         digitalWrite(PIN_5V, HIGH);  
         digitalWrite(PIN_3V, HIGH);
         break;
       }
-      case 2: {
-        log_d("[led_blink_task()]: Setup all sensors");
+      case 8: {
+        log_d("Setup all sensors");
         // --------- SETUP INA3221 ---------- //
-        ina.begin(INA_ADDRESS);
+        ina.begin(INA_ADDRESS);  
+        // --------- SETUP BME280 ---------- //
+        if (!bme.begin(BME280_ADDRESS)) {
+          log_w("Could not find a valid BME280 sensor, check wiring!");
+          while (1);
+        }
+
         break;
       }
-      case 3: {
-        log_d("[led_blink_task()]: Print Sensor");
+      case 9: {
+        log_d("Print Sensor");
         printSensor();
         break;
       }
       case 10: {
-        log_d("[led_blink_task()]: senn decide to publish the value of avblUpdate");
+        log_d("Update is avaiable");
         String payload = "{\"msg\": \"pippo\", \"Value\": \"" + String(avblUpdate) + "\"}";
         mqtt_client.publish("upd_avbl", payload.c_str(), 1);  
         log_d("msg: %d", avblUpdate);
         break;
       }
       case 20: {
-        log_d("[led_blink_task()]: we can turn off 5V and 3V");
+        log_d("we can turn off 5V and 3V");
         digitalWrite(PIN_5V, LOW);
         digitalWrite(PIN_3V, LOW);
         needsToStayActive = 0;
@@ -284,18 +307,17 @@ void led_blink_task(void* pvParameters) {
   }
 }
 
+void printSensor(void) 
+{
+  log_i("[printSensor()]: Print Sensor");
+  log_i("[printSensor()]: BME280 Temperature: %s [*C]", String(bme.readTemperature(), 1));
+  log_i("[printSensor()]: BME280 Humidity: %s [%%]", String(bme.readHumidity(), 2));
+  log_i("[printSensor()]: BME280 Pressure: %s [hPa]", String(bme.readPressure()/ 100.0F, 2));
+  log_i("[printSensor()]: BME280 Altitude: %s m",  String(bme.readAltitude(1013.25))); // 1013.25 hPa is the standard sea level pressure
 
-
-void printSensor(void){
-
-  for (uint8_t i = 0; i < 3; i++) {
-    float voltage = ina.getBusVoltage(i);
-    float current = ina.getCurrentAmps(i) * 1000; // Convert to mA
-    Serial.print("Channel " + String(i) + ": ");
-    Serial.print("Voltage = " + String(voltage) + "[V] ");
-    Serial.println("Current = " + String(current) + " [mA]");
-  }
-  Serial.println("getPower: " + String(ina.getPower(2)));
-  Serial.println("SOC = " + String(ina.vbToSoc(ina.getBusVoltage(1)*1000)) + " [ %]");
-
+  log_i("[printSensor()]: INA3221 Battery Voltage: %s [V]", String(ina.getBusVoltage(2)));
+  log_i("[printSensor()]: INA3221 Battery Current: %S [mA]", String(ina.getCurrentAmps(2)* 1000.0F)); // Converti da A a mA
+  log_i("[printSensor()]: INA3221 Battery Power: %S [W]", String(ina.getPower(2)));
+  log_i("[printSensor()]: INA3221 Battery SoC: %s [%%]", String(ina.vbToSoc(ina.getBusVoltage(2) * 1000.0F))); // Converti da V a mV
+  // Aggiungi qui altre letture dei sensori se necessario
 }

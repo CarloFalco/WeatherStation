@@ -1,9 +1,11 @@
 
-//#include <Adafruit_BME280.h>
-#include <Adafruit_INA3221.h>
-//#include "MICS6814.h"
-//#include "SparkFunCCS811.h"
-//#include "Adafruit_PM25AQI.h"
+#ifndef _ALL_SENSORS_H_
+#define _ALL_SENSORS_H_
+
+#include <Arduino.h>
+
+
+#include "driver/gpio.h"
 
 #include "configuration.h"
 #include "UtilitiesFcn.h"
@@ -226,7 +228,7 @@ void Windvane::readRawAngle(void) {
   Wire.beginTransmission(_addr);
   Wire.write(RAW_ANGLE);
   Wire.endTransmission();
-  Wire.requestFrom(_addr, 2);
+  Wire.requestFrom(_addr, (uint8_t)2);
   _rawAngle = Wire.read() << 8 | Wire.read();
   rawToAngle();
 
@@ -387,3 +389,5 @@ int INA3211::vbToSoc(float Vmeas){
   return (int)0;
 
 }
+
+#endif // _ALL_SENSORS_H_
