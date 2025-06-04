@@ -328,6 +328,15 @@ class INA3211 : public Adafruit_INA3221 {
     INA3211() : Adafruit_INA3221() {}
 
     /**
+      * @brief Inizializza il sensore INA3221 con configurazione personalizzata.
+      * Sovrascrive il begin() originale della libreria Adafruit.
+      * 
+      * @param addr Indirizzo I2C del sensore (default 0x40).
+      * @return true se inizializzazione riuscita, false altrimenti.
+      */
+    bool begin(uint8_t addr = 0x40);
+
+    /**
      * @brief Calcola la potenza in Watt su uno dei canali INA3221.
      * @param channel Canale da cui leggere (valori validi: 1, 2, 3).
      * @return Potenza calcolata (volt × ampere) in Watt.
@@ -357,8 +366,29 @@ class INA3211 : public Adafruit_INA3221 {
       int soc;           /**< Stato di carica stimato (%) */
     } INA;
 
+    // static constexpr uint8_t INA3211_I2C_ADDRESS = 0x40;  ///< Indirizzo I2C di default del sensore INA3221
+
 
 };
+
+bool INA3211::begin(uint8_t addr) {
+  if (!Adafruit_INA3221::begin(addr)) {
+    return false;
+  }
+
+  // Imposta media su 16 campioni
+  setAveragingMode(INA3221_AVG_16_SAMPLES);
+
+  // Imposta resistenze shunt per tutti i canali a 0.05 Ohm
+  for (uint8_t i = 0; i < 3; i++) {
+    setShuntResistance(i, 0.05);
+  }
+
+  // Imposta limiti validi di potenza  3.0 lower limit, 15.0 upper limit
+  setPowerValidLimits(3.0, 15.0);
+
+  return true;
+}
 
 
 float INA3211 :: getPower(uint8_t channel) {

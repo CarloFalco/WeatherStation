@@ -34,8 +34,11 @@
 *.exe
 *.out
 *.app
+*.log
+*.pdf
 
 /Code/docs/latex/*.crt
 /Code/docs/latex/*.out
 /Code/docs/latex/*.tex
 /Code/docs
+/bck
