@@ -236,7 +236,7 @@ void WakeUp_Timer(void){
   setupWiFi(); 
   mqtt_init();
 
-  xTaskCreate(led_blink_task, "LED blink task", 2048, NULL, 1, &task1Handle);   // in questo punto devo andarmi a definire tutti i task
+  xTaskCreate(led_blink_task, "LED blink task", 4096, NULL, 1, &task1Handle);   // in questo punto devo andarmi a definire tutti i task
   needsToStayActive = 1;
 
   otaUpdate.checkOTAOnce();
@@ -309,15 +309,15 @@ void led_blink_task(void* pvParameters) {
 
 void printSensor(void) 
 {
-  log_i("[printSensor()]: Print Sensor");
-  log_i("[printSensor()]: BME280 Temperature: %s [*C]", String(bme.readTemperature(), 1));
-  log_i("[printSensor()]: BME280 Humidity: %s [%%]", String(bme.readHumidity(), 2));
-  log_i("[printSensor()]: BME280 Pressure: %s [hPa]", String(bme.readPressure()/ 100.0F, 2));
-  log_i("[printSensor()]: BME280 Altitude: %s m",  String(bme.readAltitude(1013.25))); // 1013.25 hPa is the standard sea level pressure
+  log_i("Print Sensor");
+  log_i("BME280 Temperature: %s [*C]", String(bme.readTemperature(), 1));
+  log_i("BME280 Humidity: %s [%%]", String(bme.readHumidity(), 2));
+  log_i("BME280 Pressure: %s [hPa]", String(bme.readPressure()/ 100.0F, 2));
+  log_i("BME280 Altitude: %s m",  String(bme.readAltitude(1013.25))); // 1013.25 hPa is the standard sea level pressure
 
-  log_i("[printSensor()]: INA3221 Battery Voltage: %s [V]", String(ina.getBusVoltage(2)));
-  log_i("[printSensor()]: INA3221 Battery Current: %S [mA]", String(ina.getCurrentAmps(2)* 1000.0F)); // Converti da A a mA
-  log_i("[printSensor()]: INA3221 Battery Power: %S [W]", String(ina.getPower(2)));
-  log_i("[printSensor()]: INA3221 Battery SoC: %s [%%]", String(ina.vbToSoc(ina.getBusVoltage(2) * 1000.0F))); // Converti da V a mV
+  log_i("INA3221 Battery Voltage: %s [V]", String(ina.getBusVoltage(2)));
+  log_i("INA3221 Battery Current: %S [mA]", String(ina.getCurrentAmps(2)* 1000.0F)); // Converti da A a mA
+  log_i("INA3221 Battery Power: %S [W]", String(ina.getPower(2)));
+  log_i("INA3221 Battery SoC: %s [%%]", String(ina.vbToSoc(ina.getBusVoltage(2) * 1000.0F))); // Converti da V a mV
   // Aggiungi qui altre letture dei sensori se necessario
 }
