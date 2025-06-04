@@ -54,6 +54,8 @@ void WakeUp_Timer(void);
 void led_blink_task(void* pvParameters);
 
 
-void printSensor(void);
+void to_serial(void);
+
+void to_json(char * json);
 
  #endif

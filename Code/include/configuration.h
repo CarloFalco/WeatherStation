@@ -32,7 +32,7 @@
 #define PIN_3V GPIO_NUM_4 // Pin 4 del GPIO, che è il pin 3V3
 
 
-#define TIME_TO_SLEEP  10  // Time to sleep in seconds
+#define TIME_TO_SLEEP  300  // Time to sleep in seconds
 #define TASK_FAST 500   // Task execution time in milliseconds
 
 
@@ -95,6 +95,7 @@
 // LED
 #define LED_BUILTIN 97
 
-
+// JSON
+#define MAX_JSON_SIZE 1024 // 1 KB
 
 #endif // _TYPE_CONVERSION_H_

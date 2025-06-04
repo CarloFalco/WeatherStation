@@ -7,6 +7,7 @@
 #include <Wire.h>
 #include <SPI.h>
 #include <EEPROM.h>
+//#include <ArduinoJson.h>
 
 #include <Adafruit_BME280.h>
 #include <Adafruit_INA3221.h>
@@ -280,7 +281,7 @@ void led_blink_task(void* pvParameters) {
       }
       case 9: {
         log_d("Print Sensor");
-        printSensor();
+        to_serial();
         break;
       }
       case 10: {
@@ -288,6 +289,17 @@ void led_blink_task(void* pvParameters) {
         String payload = "{\"msg\": \"pippo\", \"Value\": \"" + String(avblUpdate) + "\"}";
         mqtt_client.publish("upd_avbl", payload.c_str(), 1);  
         log_d("msg: %d", avblUpdate);
+        break;
+      }
+      case 11: {
+        // --------- JSON ---------- //
+        log_d("INVIO DEL MESSAGGIO JSON");
+        char json_data_string[MAX_JSON_SIZE];  
+        to_json(json_data_string);
+        Serial.println("[DEBUG] Contenuto JSON:");
+        Serial.println(json_data_string);  // <-- QUI visualizzi il contenuto serializzato
+        mqtt_client.publish("TESTWS", (const char *) json_data_string, 1);
+
         break;
       }
       case 20: {
@@ -307,7 +319,7 @@ void led_blink_task(void* pvParameters) {
   }
 }
 
-void printSensor(void) 
+void to_serial(void) 
 {
   log_i("Print Sensor");
   log_i("BME280 Temperature: %s [*C]", String(bme.readTemperature(), 1));
@@ -320,4 +332,37 @@ void printSensor(void)
   log_i("INA3221 Battery Power: %S [W]", String(ina.getPower(2)));
   log_i("INA3221 Battery SoC: %s [%%]", String(ina.vbToSoc(ina.getBusVoltage(2) * 1000.0F))); // Converti da V a mV
   // Aggiungi qui altre letture dei sensori se necessario
+}
+
+
+void to_json(char * json){
+
+DynamicJsonDocument doc(MAX_JSON_SIZE);
+
+
+JsonObject epoc = doc.createNestedObject("epoc");
+epoc["Giorno"] = String(rtc.getDay());
+epoc["Mese"] = String(rtc.getMonth()+1);
+epoc["Anno"] = String(rtc.getYear());
+epoc["Ore"] = String(rtc.getTime());
+
+
+JsonObject environment_sensor = doc.createNestedObject("environment_sensor");
+environment_sensor["temperature"] = String(bme.readTemperature(), 2);
+environment_sensor["humidity"] = String(bme.readHumidity(), 0);
+
+
+// JsonObject power_managment = doc["power_managment"].to<JsonObject>();
+JsonObject power_managment = doc.createNestedObject("power_managment");
+
+power_managment["SOC"] = ina.vbToSoc(ina.getBusVoltage(2) * 1000.0F);
+power_managment["bat_volt"] = ina.getBusVoltage(2) * 1000.0F;
+
+size_t len = serializeJson(doc, json, MAX_JSON_SIZE);
+Serial.printf("[DEBUG] Lunghezza JSON: %d bytes\n", len);
+
+
+// serializeJson(doc, Serial);
+
+
 }

@@ -243,9 +243,7 @@ bool ESP32GithubOtaUpdate::doVersionCheck() {
   return isUpdateAvailable;
 }
 
-
-void ESP32GithubOtaUpdate::checkOTAOnce()
-{
+void ESP32GithubOtaUpdate::checkOTAOnce(){
   Serial.println("checkForOTAONCE");
   if(doVersionCheck()) { // aggiornamento disponibile 
     avblUpdate = UPDATE_AVAILABLE;
@@ -259,9 +257,6 @@ void ESP32GithubOtaUpdate::checkOTAOnce()
   }
 
 }
-
-
-
 
 void ESP32GithubOtaUpdate::setClock() {
   configTime(0, 0, "pool.ntp.org", "time.nist.gov");  // UTC
@@ -281,8 +276,7 @@ void ESP32GithubOtaUpdate::setClock() {
   DEBUG_ESP32GOA("Current time: %s\r\n", asctime(&timeinfo));
 }
 
-void ESP32GithubOtaUpdate::checkForOTA()
-{
+void ESP32GithubOtaUpdate::checkForOTA(){
     for (;;){
       
       Serial.println("checkForOTA");
