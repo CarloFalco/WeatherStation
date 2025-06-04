@@ -7,7 +7,6 @@
 #include <Wire.h>
 #include <SPI.h>
 #include <EEPROM.h>
-//#include <ArduinoJson.h>
 
 #include <Adafruit_BME280.h>
 #include <Adafruit_INA3221.h>
@@ -95,6 +94,7 @@ RTC_DATA_ATTR uint8_t needsToStayActive = 0; // probabilmente duplicato // TODO:
 RTC_DATA_ATTR unsigned long wakeUpPreviousTime = 0;
 RTC_DATA_ATTR update_status_t avblUpdate = NO_UPDATE; // -> questa variabile dovrebbe essere mantenuta tra un accensione e l'altra
 RTC_DATA_ATTR bool rqtUpdate = false;
+RTC_DATA_ATTR int debugCount = 0;
 
 bool needToStayAlive = 0;
 
@@ -108,7 +108,7 @@ ESP32Time rtc(0);  // Dichiarazione di rtc
 // SENSORI
 INA3211 ina;
 Adafruit_BME280 bme; 
-
+Windvane windvane(AS5600_ADDRESS);
 
 
 // Definizione dei TASK
@@ -125,11 +125,13 @@ void setup() {
   pinMode(PIN_5V, OUTPUT);
   pinMode(PIN_3V, OUTPUT);
 
+  led.init();
+  debugCount ++;
 
-
-  int count = 0;
   Serial.begin(115200);
   delay(100);
+
+
 
 
   log_i("WelcomeToNewBuild");
@@ -199,6 +201,8 @@ void loop(){
     esp_sleep_enable_timer_wakeup(timeToNextWakeUp);
 
     log_i("Entrando in modalità sleep...");
+    led.off();
+    // Se la seriale è attiva, aspettiamo che sia vuota prima di entrare in sleep
     if(Serial) {
       Serial.flush();
       }
@@ -216,6 +220,7 @@ void WakeUp_PowerLoss(void){
   setupWiFi(); // setup wifi connection
   // setup time
   setup_rtc_time(&rtc);
+  debugCount = 0; // resetto il contatore dei debug
 
   String dataTime = rtc.getTime("%A, %B %d %Y %H:%M:%S");
   log_i("%s", dataTime.c_str());
@@ -224,7 +229,6 @@ void WakeUp_PowerLoss(void){
 
 void WakeUp_Interrupt(void){
   log_d("[WakeUp_Interrupt()]: Wake Up caused by interrupt");
-  led.init();
   wakeUpCount ++;
   log_d("[WakeUp_Interrupt()]: Set led to RED");
   led.red();
@@ -232,15 +236,11 @@ void WakeUp_Interrupt(void){
 
 void WakeUp_Timer(void){
   log_d("[WakeUp_Timer()]: Wake Up caused by timer");
-  led.init();
-  
   setupWiFi(); 
   mqtt_init();
-
+  otaUpdate.checkOTAOnce();
   xTaskCreate(led_blink_task, "LED blink task", 4096, NULL, 1, &task1Handle);   // in questo punto devo andarmi a definire tutti i task
   needsToStayActive = 1;
-
-  otaUpdate.checkOTAOnce();
 
 }
 
@@ -255,7 +255,7 @@ void led_blink_task(void* pvParameters) {
     // Esegui il codice del task 1
     mqtt_client.loop();
 
-    led.toggle();
+    // led.toggle();
     // led.blue();
     count_iter ++;
     log_i("count_iter: %d", count_iter);
@@ -267,7 +267,17 @@ void led_blink_task(void* pvParameters) {
         digitalWrite(PIN_3V, HIGH);
         break;
       }
+      case 3: {
+        led.orange();
+        break;
+      }
+      case 5: {
+        led.purple();
+        break;
+      }
+
       case 8: {
+        led.red();
         log_d("Setup all sensors");
         // --------- SETUP INA3221 ---------- //
         ina.begin(INA_ADDRESS);  
@@ -280,29 +290,52 @@ void led_blink_task(void* pvParameters) {
         break;
       }
       case 9: {
+        led.green();
         log_d("Print Sensor");
         to_serial();
         break;
       }
       case 10: {
+        led.blue();
         log_d("Update is avaiable");
-        String payload = "{\"msg\": \"pippo\", \"Value\": \"" + String(avblUpdate) + "\"}";
+        // String payload = "{\"msg\": \"pippo\", \"Value\": \"" + String(avblUpdate) + "\"}";
+        String payload = "{\"IterationCount\":" + String(debugCount) + ", \"UpdateAvaiable\": \"" + String(avblUpdate) + "\"}";
         mqtt_client.publish("upd_avbl", payload.c_str(), 1);  
         log_d("msg: %d", avblUpdate);
+
+        
         break;
       }
-      case 11: {
+      case 12: {
         // --------- JSON ---------- //
+        led.yellow();
         log_d("INVIO DEL MESSAGGIO JSON");
         char json_data_string[MAX_JSON_SIZE];  
         to_json(json_data_string);
-        Serial.println("[DEBUG] Contenuto JSON:");
-        Serial.println(json_data_string);  // <-- QUI visualizzi il contenuto serializzato
-        mqtt_client.publish("TESTWS", (const char *) json_data_string, 1);
+        //Serial.println("[DEBUG] Contenuto JSON:");
+
+        //Serial.println(json_data_string);  // <-- QUI visualizzi il contenuto serializzato
+        log_d("JSON: %s", json_data_string);
+
+        bool published = mqtt_client.publish("TESTWS", (const char *) json_data_string, 1);
+        log_d("Publish JSON: %s", published ? "Success" : "Failed");
+        if (!published) {
+          bool published = mqtt_client.publish("TESTWS", (const char *) json_data_string, false);        
+          log_d("Publish JSON 2 Test: %s", published ? "Success" : "Failed");
+
+          log_w("Publish fallito, stato MQTT: %d", mqtt_client.state());
+        }
+        if (!published) {
+          log_w("Publish fallito, stato MQTT: %d", mqtt_client.state());
+        }
+
+
 
         break;
       }
+      
       case 20: {
+        led.cyan();
         log_d("we can turn off 5V and 3V");
         digitalWrite(PIN_5V, LOW);
         digitalWrite(PIN_3V, LOW);
@@ -319,18 +352,21 @@ void led_blink_task(void* pvParameters) {
   }
 }
 
-void to_serial(void) 
-{
-  log_i("Print Sensor");
+void to_serial(void) {
+  log_i("-------------------------------");
   log_i("BME280 Temperature: %s [*C]", String(bme.readTemperature(), 1));
   log_i("BME280 Humidity: %s [%%]", String(bme.readHumidity(), 2));
   log_i("BME280 Pressure: %s [hPa]", String(bme.readPressure()/ 100.0F, 2));
   log_i("BME280 Altitude: %s m",  String(bme.readAltitude(1013.25))); // 1013.25 hPa is the standard sea level pressure
-
+  log_i("-------------------------------");  
+  log_i("Direzione del vento: %s []", windvane.getDirection());
+  log_i("Velocità del vento: %s [*]", String(windvane.getWindAngle()));
+  log_i("-------------------------------");  
   log_i("INA3221 Battery Voltage: %s [V]", String(ina.getBusVoltage(2)));
   log_i("INA3221 Battery Current: %S [mA]", String(ina.getCurrentAmps(2)* 1000.0F)); // Converti da A a mA
   log_i("INA3221 Battery Power: %S [W]", String(ina.getPower(2)));
   log_i("INA3221 Battery SoC: %s [%%]", String(ina.vbToSoc(ina.getBusVoltage(2) * 1000.0F))); // Converti da V a mV
+  log_i("-------------------------------");
   // Aggiungi qui altre letture dei sensori se necessario
 }
 
@@ -341,25 +377,48 @@ DynamicJsonDocument doc(MAX_JSON_SIZE);
 
 
 JsonObject epoc = doc.createNestedObject("epoc");
-epoc["Giorno"] = String(rtc.getDay());
-epoc["Mese"] = String(rtc.getMonth()+1);
-epoc["Anno"] = String(rtc.getYear());
-epoc["Ore"] = String(rtc.getTime());
+epoc["Giorno"] = rtc.getDay();
+epoc["Mese"] = rtc.getMonth() + 1;
+epoc["Anno"] = rtc.getYear();
+epoc["Ore"] = rtc.getTime();  // solo se rtc.getTime() restituisce già una stringa
 
 
 JsonObject environment_sensor = doc.createNestedObject("environment_sensor");
-environment_sensor["temperature"] = String(bme.readTemperature(), 2);
-environment_sensor["humidity"] = String(bme.readHumidity(), 0);
+environment_sensor["temperature"] = String(bme.readTemperature(), 1);  // tipo float
+environment_sensor["humidity"] = String(bme.readHumidity());
 
+environment_sensor["wind_direction"] = windvane.getDirection();
+environment_sensor["wind_raw_angle"] = String(windvane.getWindAngle());
 
-// JsonObject power_managment = doc["power_managment"].to<JsonObject>();
 JsonObject power_managment = doc.createNestedObject("power_managment");
+power_managment["SOC"] = ina.vbToSoc(ina.getBusVoltage(1) * 1000.0F);
 
-power_managment["SOC"] = ina.vbToSoc(ina.getBusVoltage(2) * 1000.0F);
-power_managment["bat_volt"] = ina.getBusVoltage(2) * 1000.0F;
+JsonObject current = power_managment.createNestedObject("Current");
+current["Pannel"] = String(ina.getCurrentAmps(0) * 1000.0F, 2);
+current["Battery"] = String(ina.getCurrentAmps(1) * 1000.0F, 2);
+current["Load"] = String(ina.getCurrentAmps(2) * 1000.0F);
+
+
+JsonObject voltage = power_managment.createNestedObject("voltage");
+voltage["Pannel"] = String(ina.getBusVoltage(0) * 1000.0F, 0);
+voltage["Battery"] = String(ina.getBusVoltage(1) * 1000.0F, 0);
+voltage["Load"] = String(ina.getBusVoltage(2) * 1000.0F, 0);
+
+JsonObject power = power_managment.createNestedObject("Power");
+power["Pannel"] = String(ina.getPower(0), 2);
+power["Battery"] = String(ina.getPower(1), 2);
+power["Load"] =  String(ina.getPower(2), 2);
+
+
+doc.shrinkToFit();  // optional
 
 size_t len = serializeJson(doc, json, MAX_JSON_SIZE);
-Serial.printf("[DEBUG] Lunghezza JSON: %d bytes\n", len);
+log_d("Lunghezza JSON: %d bytes\n", len);
+
+if (len > MQTT_MAX_PACKET_SIZE) {
+    log_e("[ERRORE] Il payload JSON (%d byte) supera il limite massimo MQTT (%d byte).", len, MQTT_MAX_PACKET_SIZE);
+}
+
 
 
 // serializeJson(doc, Serial);

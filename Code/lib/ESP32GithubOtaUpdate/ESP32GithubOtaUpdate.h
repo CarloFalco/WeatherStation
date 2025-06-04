@@ -132,8 +132,6 @@ void ESP32GithubOtaUpdate::fetchVersionFile(void){
 }
 
 
-
-
 void ESP32GithubOtaUpdate::setUpdateCheckInterval(int updateCheckInterval) {
     _updateCheckInterval = updateCheckInterval;
     Serial.print("updateCheckInterval: ");

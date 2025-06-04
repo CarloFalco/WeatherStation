@@ -32,7 +32,7 @@
 #define PIN_3V GPIO_NUM_4 // Pin 4 del GPIO, che è il pin 3V3
 
 
-#define TIME_TO_SLEEP  300  // Time to sleep in seconds
+#define TIME_TO_SLEEP  600  // Time to sleep in seconds
 #define TASK_FAST 500   // Task execution time in milliseconds
 
 
@@ -96,6 +96,9 @@
 #define LED_BUILTIN 97
 
 // JSON
-#define MAX_JSON_SIZE 1024 // 1 KB
+#define MAX_JSON_SIZE 1024 // 2kB
+// attenzione: il buffer JSON deve essere modificato in base al valore di MQTT_MAX_PACKET_SIZE
+// #define MQTT_MAX_PACKET_SIZE 1024 nella libreria PubSubClient.h va modificato in base alla grandezza del buffer JSON
+// #define MQTT_MAX_PACKET_SIZE 1024
 
 #endif // _TYPE_CONVERSION_H_

@@ -24,6 +24,7 @@
  * //   "prova": "1"
  * // }
  */
+
 void handlePaperinoTopic(const StaticJsonDocument<200>& doc) {
   const char* msg = doc["msg"];
   String ledStatusString = doc["LedSts"];
@@ -34,9 +35,6 @@ void handlePaperinoTopic(const StaticJsonDocument<200>& doc) {
 
   // Qui potresti aggiungere azioni in base al valore di msg o ledStatus
 }
-
-
-
 
 // Topic: pluto
 // msg: {"newMsg": "20", "value": 1}
@@ -105,14 +103,5 @@ void mqtt_init() {
   } else {
     log_e("MQTT connection failed, rc=%d", mqtt_client.state());
   }
-/*
-  String payload = "{\"msg\": \"pippo\", \"Value\": \"1\"}";
-  mqtt_client.publish("upd_avbl", payload.c_str());
 
-
-  char testString[100];
-  sprintf(testString, "{\"msg\": \"helloWorld\", \"cycle_no\": %d}", 10);
-  Serial.println(testString);
-  mqtt_client.publish("TESTWS",(const char * ) testString, 1);
-*/
 }

@@ -34,7 +34,7 @@ extern Eeprom_Data_Type eepromData;
 class Led {
   private:
     int sts;
-    int luminosity = 60; 
+    int luminosity = 40; 
 
   public:
     byte pin;
@@ -49,6 +49,13 @@ class Led {
     void red();
     void green();
     void blue();
+    void yellow();
+    void cyan();
+    void magenta();
+    void orange();
+    void purple();
+    void setColor(String colorName);
+
 
     void toggle();
     

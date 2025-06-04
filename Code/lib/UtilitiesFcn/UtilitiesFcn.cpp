@@ -263,6 +263,57 @@ void Led::green(){
 void Led::blue(){
   neopixelWrite(pin,0,0,luminosity);
 }
+void Led::yellow() {
+  neopixelWrite(pin, luminosity, luminosity, 0); // rosso + verde
+}
+void Led::cyan() {
+  neopixelWrite(pin, 0, luminosity, luminosity); // verde + blu
+}
+void Led::magenta() {
+  neopixelWrite(pin, luminosity, 0, luminosity); // rosso + blu
+}
+void Led::orange() {
+  neopixelWrite(pin, luminosity, luminosity / 2, 0); // arancione
+}
+void Led::purple() {
+  neopixelWrite(pin, luminosity / 2, luminosity, 0); // arancione
+}
+void Led::setColor(String colorName) {
+  colorName.toLowerCase();
+
+  if (colorName == "red") {
+    neopixelWrite(pin, luminosity, 0, 0);
+  } else if (colorName == "green") {
+    neopixelWrite(pin, 0, luminosity, 0);
+  } else if (colorName == "blue") {
+    neopixelWrite(pin, 0, 0, luminosity);
+  } else if (colorName == "yellow") {
+    neopixelWrite(pin, luminosity, luminosity, 0);
+  } else if (colorName == "cyan") {
+    neopixelWrite(pin, 0, luminosity, luminosity);
+  } else if (colorName == "magenta") {
+    neopixelWrite(pin, luminosity, 0, luminosity);
+  } else if (colorName == "white") {
+    neopixelWrite(pin, luminosity, luminosity, luminosity);
+  } else if (colorName == "off") {
+    neopixelWrite(pin, 0, 0, 0);
+  } else if (colorName == "orange") {          // arancione
+    neopixelWrite(pin, luminosity, luminosity / 2, 0);
+  } else if (colorName == "lime") {            // verde-lime
+    neopixelWrite(pin, luminosity / 2, luminosity, 0);
+  } else if (colorName == "purple") {          // viola scuro
+    neopixelWrite(pin, luminosity, 0, luminosity / 2);
+  } else {
+    ;
+  }
+}
+
+
+
+
+
+
+
 int Led::pinStatus(){
 
   return sts;
