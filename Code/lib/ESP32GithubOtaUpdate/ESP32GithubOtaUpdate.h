@@ -99,7 +99,7 @@ class ESP32GithubOtaUpdate {
 
   const char* _otaDownloadUrl = "https://raw.githubusercontent.com/CarloFalco/WeatherStation/refs/heads/main/Code/firmware.bin"; 
   const char* _versionCheckUrl = "https://raw.githubusercontent.com/CarloFalco/WeatherStation/refs/heads/main/Code/version.txt";
-  int _currentFirmwareVersion = 2025060401; // YYYYMMDDRR where R = release of the day
+  int _currentFirmwareVersion = 2025060601; // YYYYMMDDRR where R = release of the day
   int _updateCheckInterval = 60; // 60 seconds.   
 };
 

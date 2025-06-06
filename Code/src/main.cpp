@@ -94,6 +94,7 @@ RTC_DATA_ATTR uint8_t needsToStayActive = 0; // probabilmente duplicato // TODO:
 RTC_DATA_ATTR unsigned long wakeUpPreviousTime = 0;
 RTC_DATA_ATTR update_status_t avblUpdate = NO_UPDATE; // -> questa variabile dovrebbe essere mantenuta tra un accensione e l'altra
 RTC_DATA_ATTR bool rqtUpdate = false;
+RTC_DATA_ATTR bool rqtReset = false;
 RTC_DATA_ATTR int debugCount = 0;
 
 bool needToStayAlive = 0;
@@ -267,17 +268,17 @@ void led_blink_task(void* pvParameters) {
         digitalWrite(PIN_3V, HIGH);
         break;
       }
-      case 3: {
-        led.orange();
-        break;
-      }
-      case 5: {
-        led.purple();
+
+      case 2: { // primo giro accendo i pin 5V e 3V
+        log_d("update clock");
+        if (rqtReset = true) {
+          setup_rtc_time(&rtc);
+        }
+
         break;
       }
 
-      case 8: {
-        led.red();
+      case 3: {
         log_d("Setup all sensors");
         // --------- SETUP INA3221 ---------- //
         ina.begin(INA_ADDRESS);  
@@ -289,14 +290,13 @@ void led_blink_task(void* pvParameters) {
 
         break;
       }
-      case 9: {
-        led.green();
+      case 4: {
         log_d("Print Sensor");
         to_serial();
         break;
       }
-      case 10: {
-        led.blue();
+
+      case 7: {
         log_d("Update is avaiable");
         // String payload = "{\"msg\": \"pippo\", \"Value\": \"" + String(avblUpdate) + "\"}";
         String payload = "{\"IterationCount\":" + String(debugCount) + ", \"UpdateAvaiable\": \"" + String(avblUpdate) + "\"}";
@@ -306,7 +306,7 @@ void led_blink_task(void* pvParameters) {
         
         break;
       }
-      case 12: {
+      case 8: {
         // --------- JSON ---------- //
         led.yellow();
         log_d("INVIO DEL MESSAGGIO JSON");
@@ -334,8 +334,7 @@ void led_blink_task(void* pvParameters) {
         break;
       }
       
-      case 20: {
-        led.cyan();
+      case 10: {
         log_d("we can turn off 5V and 3V");
         digitalWrite(PIN_5V, LOW);
         digitalWrite(PIN_3V, LOW);
@@ -391,13 +390,13 @@ environment_sensor["wind_direction"] = windvane.getDirection();
 environment_sensor["wind_raw_angle"] = String(windvane.getWindAngle());
 
 JsonObject power_managment = doc.createNestedObject("power_managment");
-power_managment["SOC"] = ina.vbToSoc(ina.getBusVoltage(1) * 1000.0F);
+float battery_voltage = ina.getBusVoltage(1) - ina.getCurrentAmps(1) * 0.01; 
+power_managment["SOC"] = ina.vbToSoc(battery_voltage * 1000.0F);
 
 JsonObject current = power_managment.createNestedObject("Current");
 current["Pannel"] = String(ina.getCurrentAmps(0) * 1000.0F, 2);
 current["Battery"] = String(ina.getCurrentAmps(1) * 1000.0F, 2);
 current["Load"] = String(ina.getCurrentAmps(2) * 1000.0F);
-
 
 JsonObject voltage = power_managment.createNestedObject("voltage");
 voltage["Pannel"] = String(ina.getBusVoltage(0) * 1000.0F, 0);
@@ -408,7 +407,6 @@ JsonObject power = power_managment.createNestedObject("Power");
 power["Pannel"] = String(ina.getPower(0), 2);
 power["Battery"] = String(ina.getPower(1), 2);
 power["Load"] =  String(ina.getPower(2), 2);
-
 
 doc.shrinkToFit();  // optional
 

@@ -36,15 +36,23 @@ void handlePaperinoTopic(const StaticJsonDocument<200>& doc) {
   // Qui potresti aggiungere azioni in base al valore di msg o ledStatus
 }
 
-// Topic: pluto
+// Topic: reset_rqt
 // msg: {"newMsg": "20", "value": 1}
-void handlePlutoTopic(const StaticJsonDocument<200>& doc) {
-  const char* newMsg = doc["newMsg"];
-  int newValue = doc["newValue"];
-  log_i("Message: %s | Nuovo Valore: %d", newMsg, newValue);
+void handleRstRqtTopic(const StaticJsonDocument<200>& doc) {
+ 
+  int rstValue = doc["rstValue"];
+  rqtReset = false;
+
+  if (rstValue == 1){ 
+    rqtReset = true;
+  }
+  log_i("Message Value: %d | Update Request: %d", rstValue, rqtReset);
+
 }
 
 
+// Topic: upd_rqt
+// msg: {"updValue": "1"}
 void handleUpdRqtTopic(const StaticJsonDocument<200>& doc) {
 
   int updValue = doc["updValue"];
@@ -81,8 +89,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
   if (strcmp(topic, "paperino") == 0) {
     handlePaperinoTopic(doc);
-  } else if (strcmp(topic, "pluto") == 0) {
-    handlePlutoTopic(doc);
+  } else if (strcmp(topic, "reset_rqt") == 0) {
+    handleRstRqtTopic(doc);
   } else if (strcmp(topic, "upd_rqt") == 0) {
     handleUpdRqtTopic(doc);
   }
@@ -97,7 +105,7 @@ void mqtt_init() {
   if (mqtt_client.connect(mqtt_client_id, mqtt_user, mqtt_pass)) {
     log_d("MQTT connected");
     if (mqtt_client.subscribe("paperino"))  { log_d("Sottoscritto al topic 'paperino'");} 
-    if (mqtt_client.subscribe("pluto"))     { log_d("Sottoscritto al topic 'pluto'");} 
+    if (mqtt_client.subscribe("reset_rqt"))     { log_d("Sottoscritto al topic 'reset_rqt'");} 
     if (mqtt_client.subscribe("upd_rqt"))   { log_d("Sottoscritto al topic 'upd_rqt'");} 
 
   } else {
