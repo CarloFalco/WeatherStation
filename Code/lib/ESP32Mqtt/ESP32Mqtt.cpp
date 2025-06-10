@@ -50,7 +50,6 @@ void handleRstRqtTopic(const StaticJsonDocument<200>& doc) {
 
 }
 
-
 // Topic: upd_rqt
 // msg: {"updValue": "1"}
 void handleUpdRqtTopic(const StaticJsonDocument<200>& doc) {
@@ -64,6 +63,7 @@ void handleUpdRqtTopic(const StaticJsonDocument<200>& doc) {
   log_i("Message Value: %d | Update Request: %d", updValue, rqtUpdate);
 
 }
+
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   
@@ -96,6 +96,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   }
 }
 
+
 void mqtt_init() {
 
   mqtt_client.setCallback(mqttCallback);
@@ -113,3 +114,80 @@ void mqtt_init() {
   }
 
 }
+
+void publishJsonMessage(const char* topic, const JsonDocument& doc) {
+    char buffer[MAX_JSON_SIZE];
+    size_t len = serializeJson(doc, buffer, MAX_JSON_SIZE);
+
+    if (len > MQTT_MAX_PACKET_SIZE) {
+        log_e("[ERRORE] Payload JSON (%d byte) supera limite MQTT (%d byte)", len, MQTT_MAX_PACKET_SIZE);
+        return;
+    }
+
+    if (!mqtt_client.publish(topic, buffer, true)) {
+        log_e("[ERRORE] Fallita pubblicazione su topic %s", topic);
+    } else {
+        log_i("Pubblicato su %s: %s", topic, buffer);
+    }
+}
+
+
+
+
+
+
+
+
+/*
+void to_json(char * json){
+
+DynamicJsonDocument doc(MAX_JSON_SIZE);
+
+
+JsonObject epoc = doc.createNestedObject("epoc");
+epoc["Giorno"] = rtc.getDay();
+epoc["Mese"] = rtc.getMonth() + 1;
+epoc["Anno"] = rtc.getYear();
+epoc["Ore"] = rtc.getTime();  // solo se rtc.getTime() restituisce già una stringa
+
+
+JsonObject environment_sensor = doc.createNestedObject("environment_sensor");
+environment_sensor["temperature"] = String(bme.readTemperature(), 1);  // tipo float
+environment_sensor["humidity"] = String(bme.readHumidity());
+
+environment_sensor["wind_direction"] = windvane.getDirection();
+environment_sensor["wind_raw_angle"] = String(windvane.getWindAngle());
+
+JsonObject power_managment = doc.createNestedObject("power_managment");
+float battery_voltage = ina.getBusVoltage(1) - ina.getCurrentAmps(1) * 0.01; 
+power_managment["SOC"] = ina.vbToSoc(battery_voltage * 1000.0F);
+
+JsonObject current = power_managment.createNestedObject("Current");
+current["Pannel"] = String(ina.getCurrentAmps(0) * 1000.0F, 2);
+current["Battery"] = String(ina.getCurrentAmps(1) * 1000.0F, 2);
+current["Load"] = String(ina.getCurrentAmps(2) * 1000.0F);
+
+JsonObject voltage = power_managment.createNestedObject("voltage");
+voltage["Pannel"] = String(ina.getBusVoltage(0) * 1000.0F, 0);
+voltage["Battery"] = String(ina.getBusVoltage(1) * 1000.0F, 0);
+voltage["Load"] = String(ina.getBusVoltage(2) * 1000.0F, 0);
+
+JsonObject power = power_managment.createNestedObject("Power");
+power["Pannel"] = String(ina.getPower(0), 2);
+power["Battery"] = String(ina.getPower(1), 2);
+power["Load"] =  String(ina.getPower(2), 2);
+
+doc.shrinkToFit();  // optional
+
+size_t len = serializeJson(doc, json, MAX_JSON_SIZE);
+log_d("Lunghezza JSON: %d bytes\n", len);
+
+if (len > MQTT_MAX_PACKET_SIZE) {
+    log_e("[ERRORE] Il payload JSON (%d byte) supera il limite massimo MQTT (%d byte).", len, MQTT_MAX_PACKET_SIZE);
+}
+
+// serializeJson(doc, Serial);
+
+}
+
+*/

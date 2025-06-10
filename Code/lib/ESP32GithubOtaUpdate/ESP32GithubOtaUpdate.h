@@ -41,6 +41,7 @@ class ESP32GithubOtaUpdate {
     void checkForOTA();
     void checkOTAOnce();
     void fetchVersionFile();
+    int getCurrentFirmwareVersion();
           
   private:
     void setClock();    
@@ -124,7 +125,7 @@ void ESP32GithubOtaUpdate::fetchVersionFile(void){
     if (line == "\r") break;
   }
 
-  // ✅ Leggi la risposta
+  // Leggi la risposta
   while (client.available()) {
     String line = client.readStringUntil('\n');
     Serial.println(line);
@@ -134,28 +135,28 @@ void ESP32GithubOtaUpdate::fetchVersionFile(void){
 
 void ESP32GithubOtaUpdate::setUpdateCheckInterval(int updateCheckInterval) {
     _updateCheckInterval = updateCheckInterval;
-    Serial.print("updateCheckInterval: ");
-    Serial.println("Done");
+    DEBUG_ESP32GOA("[setUpdateCheckInterval()]: updateCheckInterval: %d\r DONE\n", _updateCheckInterval);
 }
 
 void ESP32GithubOtaUpdate::setOTADownloadUrl(const char* otaDownloadUrl) {
     _otaDownloadUrl = otaDownloadUrl;
-    Serial.print("otaDownloadUrl: ");
-    Serial.println("Done");
+    DEBUG_ESP32GOA("[setOTADownloadUrl()]: otaDownloadUrl: %s\r DONE\n", _otaDownloadUrl);
 }
 
 void ESP32GithubOtaUpdate::setVersionCheckUrl(const char* versionCheckUrl) {
     _versionCheckUrl = versionCheckUrl;
-    Serial.print("versionCheckUrl: ");
-    Serial.print(versionCheckUrl);
-    Serial.println("\t Done");
+    DEBUG_ESP32GOA("[setVersionCheckUrl()]: versionCheckUrl: %s\r DONE\n", _versionCheckUrl);
 }
 
 void ESP32GithubOtaUpdate::setCurrentFirmwareVersion(int currentFirmwareVersion) {
     _currentFirmwareVersion = currentFirmwareVersion;
-    Serial.print("currentFirmwareVersion: ");
-    Serial.println("Done");
+    DEBUG_ESP32GOA("[setCurrentFirmwareVersion()]: currentFirmwareVersion: %d\r DONE\n", _currentFirmwareVersion);
 }
+
+int ESP32GithubOtaUpdate::getCurrentFirmwareVersion() {
+    return _currentFirmwareVersion;
+}
+
 
 void ESP32GithubOtaUpdate::doFirmwareUpdate() {
   DEBUG_ESP32GOA("[doFirmwareUpdate()]: Downloading new firmware update ..\r\n");

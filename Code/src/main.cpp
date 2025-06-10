@@ -18,9 +18,9 @@
 // My library 
 #include "documentation.h"
 #include "secret.h"
+#include "configuration.h"
+
 #include "UtilitiesFcn.h"
-
-
 
 #include "HttpReleaseUpdate.h"
 #include "ESP32GithubOtaUpdate.h"
@@ -28,7 +28,6 @@
 
 #include "AllSensor.h"
 
-#include "configuration.h"
 
 /** 
  * @file main.cpp
@@ -161,6 +160,7 @@ void loop(){
   if (needsToStayActive == 0 && avblUpdate != UPDATE_GOING){
   esp_sleep_wakeup_cause_t wakeUpRsn = esp_sleep_get_wakeup_cause();  
   uint64_t timeToNextWakeUp = TIME_TO_SLEEP * S_TO_uS_FACTOR;
+
     if (wakeUpRsn == ESP_SLEEP_WAKEUP_EXT0 || wakeUpRsn == ESP_SLEEP_WAKEUP_EXT1) {
       delay(1000);
       log_d("[Interrupt]: wakeUpPreviousTime: %s", String(wakeUpPreviousTime));
@@ -195,8 +195,9 @@ void loop(){
       wakeUpPreviousTime = rtc.getEpoch();
       
     }
-
-    esp_sleep_enable_ext1_wakeup((1ULL << WAKEUP_PIN_1) | (1ULL << WAKEUP_PIN_2), ESP_EXT1_WAKEUP_ANY_LOW);
+    // esp_sleep_enable_ext1_wakeup((1ULL << WAKEUP_PIN_1) | (1ULL << WAKEUP_PIN_2), ESP_EXT1_WAKEUP_ANY_LOW);
+    
+    esp_sleep_enable_ext0_wakeup(WAKEUP_PIN_1, 0);
     // Configuriamo il wakeup tramite timer
 
     esp_sleep_enable_timer_wakeup(timeToNextWakeUp);
@@ -214,17 +215,21 @@ void loop(){
 
 }
 
-
 void WakeUp_PowerLoss(void){
 
   log_d("[WakeUp_PowerLoss()]: Wake Up caused by powerloss");
   setupWiFi(); // setup wifi connection
+  mqtt_init();
+
+  sendDeviceStatus(); // invio lo stato del dispositivo
+
   // setup time
   setup_rtc_time(&rtc);
   debugCount = 0; // resetto il contatore dei debug
 
   String dataTime = rtc.getTime("%A, %B %d %Y %H:%M:%S");
   log_i("%s", dataTime.c_str());
+
 
 }
 
@@ -290,54 +295,59 @@ void led_blink_task(void* pvParameters) {
 
         break;
       }
+
       case 4: {
-        log_d("Print Sensor");
-        to_serial();
-        break;
-      }
-
-      case 7: {
         log_d("Update is avaiable");
-        // String payload = "{\"msg\": \"pippo\", \"Value\": \"" + String(avblUpdate) + "\"}";
-        String payload = "{\"IterationCount\":" + String(debugCount) + ", \"UpdateAvaiable\": \"" + String(avblUpdate) + "\"}";
-        mqtt_client.publish("upd_avbl", payload.c_str(), 1);  
-        log_d("msg: %d", avblUpdate);
-
-        
+        sendDeviceStatus();
+        if (avblUpdate == UPDATE_AVAILABLE) {
+          log_d("Update is available,");       
+        }
         break;
       }
-      case 8: {
-        // --------- JSON ---------- //
-        led.yellow();
-        log_d("INVIO DEL MESSAGGIO JSON");
-        char json_data_string[MAX_JSON_SIZE];  
-        to_json(json_data_string);
-        //Serial.println("[DEBUG] Contenuto JSON:");
 
-        //Serial.println(json_data_string);  // <-- QUI visualizzi il contenuto serializzato
-        log_d("JSON: %s", json_data_string);
+      case 5: {
+        log_d("Read all sensors");
+        // --------- READ INA3221 ---------- //
+        ina.read();
+        // --------- READ BME280 ---------- //
+        bme.read();
 
-        bool published = mqtt_client.publish("TESTWS", (const char *) json_data_string, 1);
-        log_d("Publish JSON: %s", published ? "Success" : "Failed");
-        if (!published) {
-          bool published = mqtt_client.publish("TESTWS", (const char *) json_data_string, false);        
-          log_d("Publish JSON 2 Test: %s", published ? "Success" : "Failed");
-
-          log_w("Publish fallito, stato MQTT: %d", mqtt_client.state());
-        }
-        if (!published) {
-          log_w("Publish fallito, stato MQTT: %d", mqtt_client.state());
-        }
-
-
+        // print all sensors to serial
+        to_serial(); // TODO: da rimuovere in produzione
 
         break;
       }
-      
-      case 10: {
+      case 6: {
         log_d("we can turn off 5V and 3V");
         digitalWrite(PIN_5V, LOW);
         digitalWrite(PIN_3V, LOW);
+      }
+      case 7: {
+        // --------- Power Management ---------- //
+        log_d("invio i dati power management");
+        sendPowerManagementData();
+        break;
+      }
+
+      case 8: {
+        // --------- Environment sensor ---------- //
+        log_d("invio i dati environment sensor");
+        sendEnvironmentData();
+
+        break;
+      }      
+
+      case 9: {
+        // --------- Smog sensor ---------- //
+        log_d("invio i dati smog sensor");
+        sendSmogData();
+
+        break;
+      }
+
+
+      case 10: {
+
         needsToStayActive = 0;
         break;
       }
@@ -370,56 +380,65 @@ void to_serial(void) {
 }
 
 
-void to_json(char * json){
-
-DynamicJsonDocument doc(MAX_JSON_SIZE);
 
 
-JsonObject epoc = doc.createNestedObject("epoc");
-epoc["Giorno"] = rtc.getDay();
-epoc["Mese"] = rtc.getMonth() + 1;
-epoc["Anno"] = rtc.getYear();
-epoc["Ore"] = rtc.getTime();  // solo se rtc.getTime() restituisce già una stringa
 
+void sendEnvironmentData() {
+  DynamicJsonDocument doc(MAX_JSON_SIZE);
 
-JsonObject environment_sensor = doc.createNestedObject("environment_sensor");
-environment_sensor["temperature"] = String(bme.readTemperature(), 1);  // tipo float
-environment_sensor["humidity"] = String(bme.readHumidity());
+  JsonObject environment_sensor = doc.createNestedObject("environment_sensor");
+  environment_sensor["temperature"] = String(bme.readTemperature(), 1);  // tipo float
+  environment_sensor["humidity"] = String(bme.readHumidity());
 
-environment_sensor["wind_direction"] = windvane.getDirection();
-environment_sensor["wind_raw_angle"] = String(windvane.getWindAngle());
+  environment_sensor["wind_direction"] = windvane.getDirection();
+  environment_sensor["wind_raw_angle"] = String(windvane.getWindAngle());
 
-JsonObject power_managment = doc.createNestedObject("power_managment");
-float battery_voltage = ina.getBusVoltage(1) - ina.getCurrentAmps(1) * 0.01; 
-power_managment["SOC"] = ina.vbToSoc(battery_voltage * 1000.0F);
+  publishJsonMessage("environment_data", doc);
+}
 
-JsonObject current = power_managment.createNestedObject("Current");
-current["Pannel"] = String(ina.getCurrentAmps(0) * 1000.0F, 2);
-current["Battery"] = String(ina.getCurrentAmps(1) * 1000.0F, 2);
-current["Load"] = String(ina.getCurrentAmps(2) * 1000.0F);
+void sendDeviceStatus() {
+  DynamicJsonDocument doc(MAX_JSON_SIZE);
 
-JsonObject voltage = power_managment.createNestedObject("voltage");
-voltage["Pannel"] = String(ina.getBusVoltage(0) * 1000.0F, 0);
-voltage["Battery"] = String(ina.getBusVoltage(1) * 1000.0F, 0);
-voltage["Load"] = String(ina.getBusVoltage(2) * 1000.0F, 0);
+  doc["IterationCount"] = String(debugCount);  // se debugCount è int
+  doc["UpdateAvailable"] = avblUpdate;         // se è bool o int
+  doc["SWVersion"] = String(otaUpdate.getCurrentFirmwareVersion());
 
-JsonObject power = power_managment.createNestedObject("Power");
-power["Pannel"] = String(ina.getPower(0), 2);
-power["Battery"] = String(ina.getPower(1), 2);
-power["Load"] =  String(ina.getPower(2), 2);
-
-doc.shrinkToFit();  // optional
-
-size_t len = serializeJson(doc, json, MAX_JSON_SIZE);
-log_d("Lunghezza JSON: %d bytes\n", len);
-
-if (len > MQTT_MAX_PACKET_SIZE) {
-    log_e("[ERRORE] Il payload JSON (%d byte) supera il limite massimo MQTT (%d byte).", len, MQTT_MAX_PACKET_SIZE);
+  publishJsonMessage("device_status", doc);
 }
 
 
+void sendPowerManagementData() {
+  DynamicJsonDocument doc(MAX_JSON_SIZE);
 
-// serializeJson(doc, Serial);
+  JsonObject power_management = doc.createNestedObject("power_management");
+  float battery_voltage = ina.getBusVoltage(1) - ina.getCurrentAmps(1) * 0.01;
+  power_management["SOC"] = ina.vbToSoc(battery_voltage * 1000.0F);
 
+  JsonObject current = power_management.createNestedObject("Current");
+  current["Pannel"] = String(ina.getCurrentAmps(0) * 1000.0F, 2);
+  current["Battery"] = String(ina.getCurrentAmps(1) * 1000.0F, 2);
+  current["Load"] = String(ina.getCurrentAmps(2) * 1000.0F);
 
+  JsonObject voltage = power_management.createNestedObject("voltage");
+  voltage["Pannel"] = String(ina.getBusVoltage(0) * 1000.0F, 0);
+  voltage["Battery"] = String(ina.getBusVoltage(1) * 1000.0F, 0);
+  voltage["Load"] = String(ina.getBusVoltage(2) * 1000.0F, 0);
+
+  JsonObject power = power_management.createNestedObject("Power");
+  power["Pannel"] = String(ina.getPower(0), 2);
+  power["Battery"] = String(ina.getPower(1), 2);
+  power["Load"] =  String(ina.getPower(2), 2);
+
+    publishJsonMessage("power_management", doc);
+}
+
+void sendSmogData() {
+  DynamicJsonDocument doc(MAX_JSON_SIZE);
+
+  JsonObject smog = doc.createNestedObject("smog");
+  smog["PM1"] = String(sensors.getPM1());
+  smog["PM2.5"] = String(sensors.getPM25());
+  smog["PM10"] = String(sensors.getPM10());
+
+  publishJsonMessage("smog_data", doc);
 }
