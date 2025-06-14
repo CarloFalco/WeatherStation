@@ -189,18 +189,31 @@ class Windvane {
      * @param addr Indirizzo I2C del sensore di direzione del vento.
      */
     Windvane(uint8_t addr);
+    
+    typedef struct {
+      float angle;        /**< Angolo del vento in gradi */
+      String direction;   /**< Direzione del vento in formato testuale */
+    } WIN;
+
+    WIN winData;  /**< Dati letti dal sensore di direzione del vento */
+    /**
+     * @brief Restituisce la direzione del vento in formato testuale (es. "N", "NE", ...).
+     * @return Stringa rappresentante la direzione cardinale.
+     */
+    void getDirection(void);
 
     /**
      * @brief Restituisce la direzione del vento in formato testuale (es. "N", "NE", ...).
      * @return Stringa rappresentante la direzione cardinale.
      */
-    String getDirection(void);
-
+    String getWindDirection(void);
     /**
      * @brief Restituisce l'angolo della direzione del vento in gradi (0–360).
      * @return Angolo in gradi rispetto al nord.
      */
     float getWindAngle(void);
+
+    WIN getData(void);
 
   private:
     /**
@@ -215,9 +228,9 @@ class Windvane {
 
     uint16_t _rawAngle;  /**< Valore grezzo dell'angolo letto dal sensore */
     float _angle;        /**< Angolo convertito in gradi */
+    String _direction;        /**< Direzione del vento in formato testuale */
     uint8_t _addr;       /**< Indirizzo I2C del sensore */
 };
-
 
 Windvane::Windvane(uint8_t addr) 
   : _addr(addr), _rawAngle(0), _angle(0){
@@ -238,24 +251,35 @@ void Windvane::rawToAngle(void) {
   _angle = (_rawAngle * 360.0) / 4096.0; // Converti il valore grezzo in gradi
 }
 
-String Windvane::getDirection(void) {
+void Windvane::getDirection(void) {
   readRawAngle();
   float angle = _angle;
-  if (angle >= 337.5 || angle < 22.5) return "N";
-  else if (angle >= 22.5 && angle < 67.5) return "NE";
-  else if (angle >= 67.5 && angle < 112.5) return "E";
-  else if (angle >= 112.5 && angle < 157.5) return "SE";
-  else if (angle >= 157.5 && angle < 202.5) return "S";
-  else if (angle >= 202.5 && angle < 247.5) return "SW";
-  else if (angle >= 247.5 && angle < 292.5) return "W";
-  else return "NW";
+  String direction = "";
+  if (angle >= 337.5 || angle < 22.5) direction = "N";
+  else if (angle >= 22.5 && angle < 67.5) direction = "NE";
+  else if (angle >= 67.5 && angle < 112.5) direction = "E";
+  else if (angle >= 112.5 && angle < 157.5) direction = "SE";
+  else if (angle >= 157.5 && angle < 202.5) direction = "S";
+  else if (angle >= 202.5 && angle < 247.5) direction = "SW";
+  else if (angle >= 247.5 && angle < 292.5) direction = "W";
+  else direction = "NW";
+  _direction = direction; // Aggiorna la direzione interna
+
+  winData.angle = _angle;
+  winData.direction = _direction;
+}
+
+String Windvane::getWindDirection(void){
+  return _direction; 
 }
 
 float Windvane::getWindAngle(void){
-  readRawAngle();
   return _angle; 
 }
 
+Windvane::WIN Windvane::getData(void){
+  return winData;
+}
 
 /**
  * @class Raingauge
@@ -323,6 +347,23 @@ int Raingauge::getLevel(){
 class INA3211 : public Adafruit_INA3221 {
   public:
     /**
+    * @struct INA
+    * @brief Struttura dati per contenere informazioni elettriche su 3 canali.
+    * - Channel 0: Load (carico).
+    * - Channel 1: Batteria.
+    * - Channel 2: Pannello solare.
+    * 
+    */
+    typedef struct {
+      float current[3];  /**< Corrente per ogni canale (A) */
+      float voltage[3];  /**< Tensione per ogni canale (V) */
+      float power[3];    /**< Potenza per ogni canale (W) */
+      int soc;           /**< Stato di carica stimato (%) */
+    } INA;
+
+    INA inaData;  /**< Dati letti dai 3 canali del sensore INA3211 */
+
+    /**
      * @brief Costruttore di default. Inizializza l'oggetto INA3211.
      */
     INA3211() : Adafruit_INA3221() {}
@@ -350,23 +391,15 @@ class INA3211 : public Adafruit_INA3221 {
      */
     int vbToSoc(float Vmeas);
 
-  private:
     /**
-    * @struct INA
-    * @brief Struttura dati per contenere informazioni elettriche su 3 canali.
-    * - Channel 1: Pannello solare.
-    * - Channel 2: Batteria.
-    * - Channel 3: Load (carico).
-    * 
+     * @brief Legge i dati dai 3 canali del sensore INA3221 e li memorizza in una struttura INA.
      */
-    typedef struct {
-      float current[3];  /**< Corrente per ogni canale (A) */
-      float voltage[3];  /**< Tensione per ogni canale (V) */
-      float power[3];    /**< Potenza per ogni canale (W) */
-      int soc;           /**< Stato di carica stimato (%) */
-    } INA;
+    void read(void);
 
-    // static constexpr uint8_t INA3211_I2C_ADDRESS = 0x40;  ///< Indirizzo I2C di default del sensore INA3221
+    INA getData(void);
+
+    private:
+    bool CorrSOC = false;  /**< Flag per abilitare la correzione dello stato di carica (SoC) */
 
 
 };
@@ -390,8 +423,7 @@ bool INA3211::begin(uint8_t addr) {
   return true;
 }
 
-
-float INA3211 :: getPower(uint8_t channel) {
+float INA3211::getPower(uint8_t channel) {
   float voltage = getBusVoltage(channel);  // Legge la tensione
   float current = getCurrentAmps(channel) ;  // Converte da mA a A
   return voltage * current;  // Restituisce la potenza in Watt
@@ -417,7 +449,87 @@ int INA3211::vbToSoc(float Vmeas){
       }
   }
   return (int)0;
+}
 
+// TODO : Rivedere la struttura INA e il metodo read() per restituire un oggetto INA con i dati dei 3 canali.
+void INA3211::read() {
+  for (uint8_t i = 0; i < 3; i++) {
+    inaData.current[i] = getCurrentAmps(i);
+    inaData.voltage[i] = getBusVoltage(i);
+    inaData.power[i] = getPower(i);
+  }
+  if (CorrSOC == true) {
+      float battery_voltage = inaData.voltage[1] - inaData.current[1] * 0.01;
+    // Se la correzione dello stato di carica è abilitata, sottrae 0.01V per compensare la caduta di tensione
+    inaData.soc = vbToSoc(battery_voltage * 1000.0F); // Converti da V a mV
+  }else{
+    // Altrimenti, usa la tensione misurata direttamente
+    inaData.soc = vbToSoc(inaData.voltage[1] * 1000.0F); // Converti da V a mV
+  }
+  
+
+  // return ina;
+}
+
+INA3211::INA INA3211::getData(void) {
+  return inaData;  // Restituisce i dati letti
+}
+
+
+
+class BME280 : public Adafruit_BME280 {
+
+  public:
+      typedef struct {
+      float temperature; /**< Temperatura (°C) */
+      float humidity;    /**< Umidità relativa (%) */
+      float pressure;    /**< Pressione atmosferica (hPa) */
+      float altitude;    /**< Altitudine calcolata (m) */
+    } BME;
+
+    BME bmeData;  /**< Dati letti dal sensore BME280 */
+
+    /**
+     * @brief Costruttore di default. Inizializza l'oggetto BME280.
+     */
+    BME280() : Adafruit_BME280() {}
+    /**
+     * @brief Inizializza il sensore BME280 con configurazione personalizzata.
+     * Sovrascrive il begin() originale della libreria Adafruit.
+     * 
+     * @param addr Indirizzo I2C del sensore (default 0x76).
+     * @return true se inizializzazione riuscita, false altrimenti.
+     */
+    bool begin(uint8_t addr = 0x76);
+
+    /**
+     * @brief Legge i dati dal sensore BME280 e li memorizza in variabili.
+     */
+    void read(void);
+
+   BME getData(void);
+
+};
+
+bool BME280::begin(uint8_t addr) {
+  if (!Adafruit_BME280::begin(addr)) {
+    return false;
+  }
+
+  return true;
+}
+
+void BME280::read() {
+  // Legge i dati dal sensore BME280
+  bmeData.temperature = readTemperature();
+  bmeData.humidity = readHumidity();
+  bmeData.pressure = readPressure() / 100.0F; // Converti da Pa a hPa
+  bmeData.altitude = readAltitude(bmeData.pressure); // Calcola l'altitudine
+  return;
+}
+
+BME280::BME BME280::getData(void){
+  return bmeData;
 }
 
 #endif // _ALL_SENSORS_H_

@@ -56,6 +56,14 @@ void led_blink_task(void* pvParameters);
 
 void to_serial(void);
 
-void to_json(char * json);
+
+void sendDeviceStatus();
+
+void sendEnvironmentData(); 
+
+void sendPowerManagementData();
+
+void sendSmogData();
+
 
  #endif

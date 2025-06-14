@@ -32,7 +32,7 @@
 #define PIN_3V GPIO_NUM_4 // Pin 4 del GPIO, che è il pin 3V3
 
 
-#define TIME_TO_SLEEP  300  // Time to sleep in seconds
+#define TIME_TO_SLEEP  30  // Time to sleep in seconds // TODO: da ripristinare a 300
 #define TASK_FAST 500   // Task execution time in milliseconds
 
 
@@ -69,6 +69,7 @@
 #define PIN_NO2 ADC1_CHANNEL_5
 #define PIN_NH3 ADC1_CHANNEL_6
 
+
 #define MAX_NH3 35
 #define MIN_NH3 25
 
@@ -84,6 +85,7 @@
 // GASSENSOR CCS811
 #define CCS811_ADDRESS 0x5A
 #define PIN_WAK GPIO_NUM_41
+
 // 0,3 mg/m³ ; 0,3 - 0,5 mg/m³; 0,5 - 1 mg/m³, 1 - 3 mg/m³, Oltre 3 mg/m³
 #define MAX_TVOC 600
 #define MIN_TVOC 100

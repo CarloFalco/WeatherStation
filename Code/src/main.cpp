@@ -26,6 +26,10 @@
 #include "ESP32GithubOtaUpdate.h"
 #include "ESP32Mqtt.h"
 
+#include "MICS6814.h"
+#include "SparkFunCCS811.h"
+#include "Adafruit_PM25AQI.h"
+
 #include "AllSensor.h"
 
 
@@ -47,11 +51,11 @@
 
  * @subsection Aggiornamento Via GIT
  * 
- * @subsection Creaziione delle funzioni legate al risveglio della centralina   
- * Stato: **In sviluppo**  
- * Completamento: **50%**  
- * `[====>     ]`
- * 
+ * @subsection Creaziione delle funzioni legate al risveglio della centralina
+ * Stato: **In sviluppo**
+ * Completamento: **50%**
+ * `[===>      ]`
+ *
  *   - 1: Risveglio per pioggia
  * 
  *   - 2: Risveglio per mancanza di alimentazione 
@@ -64,7 +68,7 @@
  * @subsection salvataggio informazioni su eeprom        
  * Stato: **In sviluppo**  
  * Completamento: **50%**  
- * `[====>     ]`                         
+ * `[===>      ]`                         
  *  - 1: credenziali wif
  * 
  * 
@@ -73,11 +77,15 @@
 * Stato: **In sviluppo**  
  * Completamento: **50%**  
  * `[====>     ]`  
- *     - 1: direzione vento                                 `[=>        ]`
+ *     - 1: direzione vento                                 `[==========]`
  *     - 2: intensita vento                                 `[=>        ]`
  *     - 3: precipitazioni                                  `[=>        ]`
- *     - 4: temperatura e umidita                           `[=>        ]`
+ *     - 4: temperatura e umidita                           `[==========]`
  *     - 5: umidita terreno                                 `[=>        ]`
+ *     - 6: PM10                                            `[=>        ]`
+ *     - 6: CO/NH3/NO2                                      `[==========]`
+ *     - 6: CO2/tVOC                                        `[=>        ]`
+ * 
  *     
  * 
 */
@@ -107,9 +115,28 @@ ESP32Time rtc(0);  // Dichiarazione di rtc
 
 // SENSORI
 INA3211 ina;
-Adafruit_BME280 bme; 
-Windvane windvane(AS5600_ADDRESS);
+INA3211::INA inaData;            // struttura globale per accedere ai dati
 
+BME280 bme; 
+BME280::BME bmeData; // struttura globale per accedere ai dati
+
+Windvane windvane(AS5600_ADDRESS);
+Windvane::WIN windvaneData; // struttura globale per accedere ai dati
+
+MICS6814 gasSensor(PIN_CO, PIN_NO2, PIN_NH3);
+MICS6814::MICS micsData; // struttura globale per accedere ai dati
+
+
+// CCS811 co2Sensor(CCS811_ADDRESS);
+
+
+// Adafruit_PM25AQI aqi = Adafruit_PM25AQI();
+// PM25_AQI_Data pmSensor;
+
+
+
+
+Raingauge raingauge;
 
 // Definizione dei TASK
 TaskHandle_t task1Handle = NULL;
@@ -120,6 +147,7 @@ void setup() {
 
   // pin configuration
   pinMode(PIN_ANEMOMETER, INPUT); // pinMode(PIN_ANEMOMETER, INPUT_PULLDOWN);
+
   pinMode(PIN_RAINGAUGE, INPUT);
 
   pinMode(PIN_5V, OUTPUT);
@@ -235,7 +263,8 @@ void WakeUp_PowerLoss(void){
 
 void WakeUp_Interrupt(void){
   log_d("[WakeUp_Interrupt()]: Wake Up caused by interrupt");
-  wakeUpCount ++;
+  raingauge.countTray() ; // incremento il contatore di risvegli
+
   log_d("[WakeUp_Interrupt()]: Set led to RED");
   led.red();
 }
@@ -288,10 +317,14 @@ void led_blink_task(void* pvParameters) {
         // --------- SETUP INA3221 ---------- //
         ina.begin(INA_ADDRESS);  
         // --------- SETUP BME280 ---------- //
-        if (!bme.begin(BME280_ADDRESS)) {
-          log_w("Could not find a valid BME280 sensor, check wiring!");
-          while (1);
-        }
+        bme.begin(BME280_ADDRESS); // Inizializza il sensore BME280
+        // --------- SETUP mics6814 ---------- //
+        gasSensor.begin(false);
+        // --------- SETUP CCS811 ---------- //
+        // co2Sensor.begin();
+        // --------- SETUP PM25AQI ---------- //
+        // Serial1.begin(9600, SERIAL_8N1, 17, 18);
+        // aqi.begin_UART(&Serial1);
 
         break;
       }
@@ -307,25 +340,51 @@ void led_blink_task(void* pvParameters) {
 
       case 5: {
         log_d("Read all sensors");
+
         // --------- READ INA3221 ---------- //
         ina.read();
+        inaData = ina.getData(); // recupera la struttura con i dati
+
         // --------- READ BME280 ---------- //
         bme.read();
+        bmeData = bme.getData(); // recupera la struttura con i dati
+        // --------- READ Windvane ---------- //
 
-        // print all sensors to serial
-        to_serial(); // TODO: da rimuovere in produzione
+        windvane.getDirection();
+        windvaneData = windvane.getData(); // recupera la struttura con i dati
+
+        // --------- READ MICS6814 ---------- //
+        gasSensor.read();
+        micsData = gasSensor.getData(); // recupera la struttura con i dati
+
+/*
+        // --------- READ CCS811 ---------- //
+        co2Sensor.read();
+        co2SensorData = co2Sensor.getData();
+
+        // --------- READ PM25AQI ---------- //
+        aqi.read();
+        pmSensor = aqi.getData();
+*/
+        to_serial(); 
 
         break;
       }
+
       case 6: {
         log_d("we can turn off 5V and 3V");
         digitalWrite(PIN_5V, LOW);
         digitalWrite(PIN_3V, LOW);
       }
+
       case 7: {
         // --------- Power Management ---------- //
         log_d("invio i dati power management");
+        unsigned long t0 = micros();   // Tempo iniziale in µs
         sendPowerManagementData();
+        unsigned long t1 = micros();   // Tempo finale in µs
+
+        log_d("Tempo di esecuzione: %d µs", t1 - t0);
         break;
       }
 
@@ -340,14 +399,13 @@ void led_blink_task(void* pvParameters) {
       case 9: {
         // --------- Smog sensor ---------- //
         log_d("invio i dati smog sensor");
-        sendSmogData();
+        //sendSmogData();
 
         break;
       }
 
 
       case 10: {
-
         needsToStayActive = 0;
         break;
       }
@@ -363,37 +421,45 @@ void led_blink_task(void* pvParameters) {
 
 void to_serial(void) {
   log_i("-------------------------------");
-  log_i("BME280 Temperature: %s [*C]", String(bme.readTemperature(), 1));
-  log_i("BME280 Humidity: %s [%%]", String(bme.readHumidity(), 2));
-  log_i("BME280 Pressure: %s [hPa]", String(bme.readPressure()/ 100.0F, 2));
-  log_i("BME280 Altitude: %s m",  String(bme.readAltitude(1013.25))); // 1013.25 hPa is the standard sea level pressure
-  log_i("-------------------------------");  
-  log_i("Direzione del vento: %s []", windvane.getDirection());
-  log_i("Velocità del vento: %s [*]", String(windvane.getWindAngle()));
-  log_i("-------------------------------");  
-  log_i("INA3221 Battery Voltage: %s [V]", String(ina.getBusVoltage(2)));
-  log_i("INA3221 Battery Current: %S [mA]", String(ina.getCurrentAmps(2)* 1000.0F)); // Converti da A a mA
-  log_i("INA3221 Battery Power: %S [W]", String(ina.getPower(2)));
-  log_i("INA3221 Battery SoC: %s [%%]", String(ina.vbToSoc(ina.getBusVoltage(2) * 1000.0F))); // Converti da V a mV
+  log_i("BME280 Temperature: %s [*C]", String(bmeData.temperature, 1));
+  log_i("BME280 Humidity: %s [%%]", String(bmeData.humidity, 2));
+  log_i("BME280 Pressure: %s [hPa]", String(bmeData.pressure, 2));
+  log_i("BME280 Altitude: %s m",  String(bmeData.altitude)); // 1013.25 hPa is the standard sea level pressure
   log_i("-------------------------------");
+  log_i("Direzione del vento: %s []", windvaneData.direction);
+  log_i("Velocità del vento: %s [*]", String(windvaneData.angle));
+  log_i("-------------------------------");
+  log_i("Raingauge level: %s [mm]", String(raingauge.getLevel()));
+  log_i("-------------------------------");
+  log_i("INA3221 Battery Voltage: %s [V]", String(inaData.voltage[1]));
+  log_i("INA3221 Battery Current: %S [mA]", String(inaData.current[1]* 1000.0F)); // Converti da A a mA
+  log_i("INA3221 Battery Power: %S [W]", String(inaData.power[1]));
+
+  log_i("INA3221 Battery SOC: %S [%]", String(inaData.soc));
+
+  log_i("INA3221 PANNEL Voltage: %s [V]", String(inaData.voltage[2]));
+  log_i("INA3221 PANNEL Current: %S [mA]", String(inaData.current[2]* 1000.0F)); // Converti da A a mA
+  log_i("INA3221 PANNEL Power: %S [W]", String(inaData.power[2]));
+
+  log_i("INA3221 LOAD Voltage: %s [V]", String(inaData.voltage[0]));
+  log_i("INA3221 LOAD Current: %S [mA]", String(inaData.current[0]* 1000.0F)); // Converti da A a mA
+  log_i("INA3221 LOAD Power: %S [W]", String(inaData.power[0]));
+  log_i("-------------------------------");
+  log_i("MICS6814 NH3 Value: %s [ppm]", String(micsData.NH3Value));
+  log_i("MICS6814 CO Value: %s [ppm]", String(micsData.COValue));
+  log_i("MICS6814 NO2 Value: %s [ppm]", String(micsData.NO2Value));
+  log_i("-------------------------------");
+
   // Aggiungi qui altre letture dei sensori se necessario
 }
 
 
-
-
-
-void sendEnvironmentData() {
+void sendDeviceEpoc() {
   DynamicJsonDocument doc(MAX_JSON_SIZE);
 
-  JsonObject environment_sensor = doc.createNestedObject("environment_sensor");
-  environment_sensor["temperature"] = String(bme.readTemperature(), 1);  // tipo float
-  environment_sensor["humidity"] = String(bme.readHumidity());
 
-  environment_sensor["wind_direction"] = windvane.getDirection();
-  environment_sensor["wind_raw_angle"] = String(windvane.getWindAngle());
 
-  publishJsonMessage("environment_data", doc);
+  publishJsonMessage("device_epoc", doc);
 }
 
 void sendDeviceStatus() {
@@ -406,39 +472,53 @@ void sendDeviceStatus() {
   publishJsonMessage("device_status", doc);
 }
 
+void sendEnvironmentData() {
+  DynamicJsonDocument doc(MAX_JSON_SIZE);
+
+  JsonObject environment_sensor = doc.createNestedObject("environment_sensor");
+  environment_sensor["temperature"] = String(bmeData.temperature, 1);  // tipo float
+  environment_sensor["humidity"] = String(bmeData.humidity);
+
+  environment_sensor["wind_direction"] = windvaneData.direction;
+  environment_sensor["wind_raw_angle"] = String(windvaneData.angle);
+
+  environment_sensor["NH3"] = String(micsData.NH3Value);
+  environment_sensor["CO"] = String(micsData.COValue);
+  environment_sensor["NO2"] = String(micsData.NO2Value);
+  publishJsonMessage("environment_data", doc);
+}
 
 void sendPowerManagementData() {
   DynamicJsonDocument doc(MAX_JSON_SIZE);
 
   JsonObject power_management = doc.createNestedObject("power_management");
-  float battery_voltage = ina.getBusVoltage(1) - ina.getCurrentAmps(1) * 0.01;
-  power_management["SOC"] = ina.vbToSoc(battery_voltage * 1000.0F);
+  power_management["SOC"] = inaData.soc; // Stato di carica stimato in percentuale
 
   JsonObject current = power_management.createNestedObject("Current");
-  current["Pannel"] = String(ina.getCurrentAmps(0) * 1000.0F, 2);
-  current["Battery"] = String(ina.getCurrentAmps(1) * 1000.0F, 2);
-  current["Load"] = String(ina.getCurrentAmps(2) * 1000.0F);
+  current["Pannel"] = String(inaData.current[2] * 1000.0F, 2);
+  current["Battery"] = String(inaData.current[1] * 1000.0F, 2);
+  current["Load"] = String(inaData.current[0] * 1000.0F, 2);
 
   JsonObject voltage = power_management.createNestedObject("voltage");
-  voltage["Pannel"] = String(ina.getBusVoltage(0) * 1000.0F, 0);
-  voltage["Battery"] = String(ina.getBusVoltage(1) * 1000.0F, 0);
-  voltage["Load"] = String(ina.getBusVoltage(2) * 1000.0F, 0);
+  voltage["Pannel"] = String(inaData.voltage[2] * 1000.0F, 0);
+  voltage["Battery"] = String(inaData.voltage[1] * 1000.0F, 0);
+  voltage["Load"] = String(inaData.voltage[0] * 1000.0F, 0);
 
   JsonObject power = power_management.createNestedObject("Power");
-  power["Pannel"] = String(ina.getPower(0), 2);
-  power["Battery"] = String(ina.getPower(1), 2);
-  power["Load"] =  String(ina.getPower(2), 2);
+  power["Pannel"] = String(inaData.power[2], 2);
+  power["Battery"] = String(inaData.power[1], 2);
+  power["Load"] =  String(inaData.power[0], 2);
 
     publishJsonMessage("power_management", doc);
 }
 
 void sendSmogData() {
   DynamicJsonDocument doc(MAX_JSON_SIZE);
-
+/*
   JsonObject smog = doc.createNestedObject("smog");
   smog["PM1"] = String(sensors.getPM1());
   smog["PM2.5"] = String(sensors.getPM25());
   smog["PM10"] = String(sensors.getPM10());
-
+*/
   publishJsonMessage("smog_data", doc);
 }
