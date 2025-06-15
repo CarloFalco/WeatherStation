@@ -27,14 +27,14 @@
 // #define M_SQRT2 1.4142          /* sqrt(2)*/
 
 // #define SWVERSION "1.0.0" // Versione del firmware
-#define SWVERSION_NUM 2025061504 // Versione del firmware in formato YYYYMMDDRR (RR = Release del giorno)
+#define SWVERSION_NUM 2025061505 // Versione del firmware in formato YYYYMMDDRR (RR = Release del giorno)
 
 // POWERLINE
 #define PIN_5V GPIO_NUM_11 // Pin 11 del GPIO, che è il pin 5V
 #define PIN_3V GPIO_NUM_4 // Pin 4 del GPIO, che è il pin 3V3
 
 
-#define TIME_TO_SLEEP  300  // Time to sleep in seconds // TODO: da ripristinare a 300
+#define TIME_TO_SLEEP  30  // Time to sleep in seconds // TODO: da ripristinare a 300
 #define TASK_FAST 500   // Task execution time in milliseconds
 #define TASK_CCS811 1000   // Task execution time in milliseconds
 

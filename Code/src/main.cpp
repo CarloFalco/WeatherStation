@@ -443,7 +443,7 @@ void to_serial(void) {
   log_i("Velocità del vento: %s [*]", String(windvaneData.angle));
   log_i("-------------------------------");
   log_i("Raingauge level: %s [mm]", String(raingauge.getLevel()));
-  log_i("raingauge intensity: %s", raingauge.getRainIntensity());
+  log_i("raingauge intensity: %s", raingauge.getRainIntensity().c_str());
   log_i("-------------------------------");
   log_i("INA3221 Battery Voltage: %s [V]", String(inaData.voltage[BATTERY_IN]));
   log_i("INA3221 Battery Current: %S [mA]", String(inaData.current[BATTERY_IN]* 1000.0F)); // Converti da A a mA
