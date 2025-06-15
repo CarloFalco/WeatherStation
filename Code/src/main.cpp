@@ -1,6 +1,11 @@
 // #define ENABLE_ESP32_GITHUB_OTA_UPDATE_DEBUG // Uncomment to enable logs.
-
 #include <Arduino.h>
+
+#include "documentation.h"
+#include "secret.h"
+#include "configuration.h"
+
+
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <ESP32Time.h>
@@ -8,18 +13,15 @@
 #include <SPI.h>
 #include <EEPROM.h>
 
+
 #include <Adafruit_BME280.h>
 #include <Adafruit_INA3221.h>
-//#include "MICS6814.h"
-//#include "SparkFunCCS811.h"
-//#include "Adafruit_PM25AQI.h"
+#include "MICS6814.h"
+#include "SparkFunCCS811.h"
+#include "Adafruit_PM25AQI.h"
 
 
 // My library 
-#include "documentation.h"
-#include "secret.h"
-#include "configuration.h"
-
 #include "UtilitiesFcn.h"
 
 #include "HttpReleaseUpdate.h"
@@ -75,16 +77,16 @@
  * 
  * @subsection Sensori stazione meteo:
 * Stato: **In sviluppo**  
- * Completamento: **50%**  
- * `[====>     ]`  
+ * Completamento: **80%**  
+ * `[======== ]`  
  *     - 1: direzione vento                                 `[==========]`
  *     - 2: intensita vento                                 `[=>        ]`
- *     - 3: precipitazioni                                  `[=>        ]`
+ *     - 3: precipitazioni                                  `[==========]`
  *     - 4: temperatura e umidita                           `[==========]`
  *     - 5: umidita terreno                                 `[=>        ]`
- *     - 6: PM10                                            `[=>        ]`
+ *     - 6: PM10                                            `[==========]`
  *     - 6: CO/NH3/NO2                                      `[==========]`
- *     - 6: CO2/tVOC                                        `[=>        ]`
+ *     - 6: CO2/tVOC                                        `[==========]`
  * 
  *     
  * 
@@ -127,12 +129,13 @@ MICS6814 gasSensor(PIN_CO, PIN_NO2, PIN_NH3);
 MICS6814::MICS micsData; // struttura globale per accedere ai dati
 
 
-// CCS811 co2Sensor(CCS811_ADDRESS);
+CCS811 co2Sensor(CCS811_ADDRESS);
 
 
-// Adafruit_PM25AQI aqi = Adafruit_PM25AQI();
-// PM25_AQI_Data pmSensor;
+Adafruit_PM25AQI aqi = Adafruit_PM25AQI();
+PM25_AQI_Data pmSensor;
 
+AIRQuality airQuality;
 
 
 
@@ -140,7 +143,6 @@ Raingauge raingauge;
 
 // Definizione dei TASK
 TaskHandle_t task1Handle = NULL;
-
 
 
 void setup() {
@@ -152,6 +154,9 @@ void setup() {
 
   pinMode(PIN_5V, OUTPUT);
   pinMode(PIN_3V, OUTPUT);
+  pinMode(PIN_WAK, OUTPUT);
+
+  digitalWrite(PIN_WAK, LOW);  // turn the WAK
 
   led.init();
   debugCount ++;
@@ -203,8 +208,12 @@ void loop(){
 
     if (wakeUpRsn == ESP_SLEEP_WAKEUP_TIMER) {
 
-      vTaskDelete(task1Handle);
-      task1Handle = NULL;  // Resetta l'handle dopo l'eliminazione
+      if (task1Handle != NULL) {
+        log_d(" Deleting task1Handle");
+        vTaskDelete(task1Handle);
+        task1Handle = NULL; 
+      }
+
       wakeUpCount = 0;
       wakeUpPreviousTime = rtc.getEpoch() ;
       log_d("[Timer]: wakeUpPreviousTime: %s", String(wakeUpPreviousTime));
@@ -249,8 +258,6 @@ void WakeUp_PowerLoss(void){
   setupWiFi(); // setup wifi connection
   mqtt_init();
 
-  sendDeviceStatus(); // invio lo stato del dispositivo
-
   // setup time
   setup_rtc_time(&rtc);
   debugCount = 0; // resetto il contatore dei debug
@@ -258,6 +265,8 @@ void WakeUp_PowerLoss(void){
   String dataTime = rtc.getTime("%A, %B %d %Y %H:%M:%S");
   log_i("%s", dataTime.c_str());
 
+
+  sendDeviceStatus(); // invio lo stato del dispositivo
 
 }
 
@@ -270,49 +279,39 @@ void WakeUp_Interrupt(void){
 }
 
 void WakeUp_Timer(void){
-  log_d("[WakeUp_Timer()]: Wake Up caused by timer");
+  log_d("Wake Up caused by timer");
   setupWiFi(); 
   mqtt_init();
   otaUpdate.checkOTAOnce();
-  xTaskCreate(led_blink_task, "LED blink task", 4096, NULL, 1, &task1Handle);   // in questo punto devo andarmi a definire tutti i task
+
+  log_d(" turn on 5V and 3V");
+  digitalWrite(PIN_5V, HIGH);  
+  digitalWrite(PIN_3V, HIGH);
+  digitalWrite(PIN_WAK, LOW);  // turn the WAK
+
+
+  // xTaskCreate(CCS811_task, "CCS811 task", 4096, NULL, 1, &task2Handle);   // in questo punto devo andarmi a definire tutti i task
+  xTaskCreate(sensor_task, "Sensor task", 4096, NULL, 1, &task1Handle);   // in questo punto devo andarmi a definire tutti i task
+
   needsToStayActive = 1;
 
 }
 
-
-
-
-void led_blink_task(void* pvParameters) {  
+void sensor_task(void* pvParameters) {  
   TickType_t lastWakeTime = xTaskGetTickCount();
   const TickType_t period = pdMS_TO_TICKS(TASK_FAST);
+  log_d("TASK_FAST: %d, period ticks: %d", TASK_FAST, period);
+
   int count_iter = 0;
   while (true) {
     // Esegui il codice del task 1
     mqtt_client.loop();
 
-    // led.toggle();
-    // led.blue();
     count_iter ++;
     log_i("count_iter: %d", count_iter);
 
     switch (count_iter) {
-      case 1: { // primo giro accendo i pin 5V e 3V
-        log_d(" turn on 5V and 3V");
-        digitalWrite(PIN_5V, HIGH);  
-        digitalWrite(PIN_3V, HIGH);
-        break;
-      }
-
-      case 2: { // primo giro accendo i pin 5V e 3V
-        log_d("update clock");
-        if (rqtReset = true) {
-          setup_rtc_time(&rtc);
-        }
-
-        break;
-      }
-
-      case 3: {
+      case 1: {
         log_d("Setup all sensors");
         // --------- SETUP INA3221 ---------- //
         ina.begin(INA_ADDRESS);  
@@ -321,15 +320,22 @@ void led_blink_task(void* pvParameters) {
         // --------- SETUP mics6814 ---------- //
         gasSensor.begin(false);
         // --------- SETUP CCS811 ---------- //
-        // co2Sensor.begin();
+        co2Sensor.begin();
+
         // --------- SETUP PM25AQI ---------- //
-        // Serial1.begin(9600, SERIAL_8N1, 17, 18);
-        // aqi.begin_UART(&Serial1);
+        Serial1.begin(PM25_UART_BAUDRATE, SERIAL_8N1, PM25_RX, PM25_TX);
+        aqi.begin_UART(&Serial1);
 
         break;
       }
-
-      case 4: {
+      case 2: { // primo giro accendo i pin 5V e 3V
+        log_d("update clock");
+        if (rqtReset == true) {
+          setup_rtc_time(&rtc);
+        }
+        break;
+      }
+      case 3: {
         log_d("Update is avaiable");
         sendDeviceStatus();
         if (avblUpdate == UPDATE_AVAILABLE) {
@@ -337,78 +343,83 @@ void led_blink_task(void* pvParameters) {
         }
         break;
       }
-
-      case 5: {
+      case 11: {
         log_d("Read all sensors");
-
         // --------- READ INA3221 ---------- //
         ina.read();
         inaData = ina.getData(); // recupera la struttura con i dati
-
         // --------- READ BME280 ---------- //
         bme.read();
         bmeData = bme.getData(); // recupera la struttura con i dati
-        // --------- READ Windvane ---------- //
-
+        // --------- READ Raingauge ---------- //
+        raingauge.update();
+        // --------- READ windvane ---------- //
         windvane.getDirection();
         windvaneData = windvane.getData(); // recupera la struttura con i dati
-
-        // --------- READ MICS6814 ---------- //
-        gasSensor.read();
-        micsData = gasSensor.getData(); // recupera la struttura con i dati
-
-/*
         // --------- READ CCS811 ---------- //
-        co2Sensor.read();
-        co2SensorData = co2Sensor.getData();
-
+        unsigned long startTime = micros();
+        if (!co2Sensor.read(bmeData.humidity, bmeData.temperature)) {
+          log_e("Non ho ottenuto i dati dal sensore CCS811.");
+        } 
+        unsigned long endTime = micros();
+        log_d("CCS811 read time: %lu us", endTime - startTime);
+        // --------- READ MICS6814 ---------- //
+        startTime = micros();
+        // gasSensor.read(); #TODO: questa funzione ci impiega troppo tempo ad eseguire
+        micsData = gasSensor.getData(); // recupera la struttura con i dati
+        endTime = micros();
+        log_d("MICS6814 read time: %lu us", endTime - startTime);
         // --------- READ PM25AQI ---------- //
-        aqi.read();
-        pmSensor = aqi.getData();
-*/
-        to_serial(); 
-
+        startTime = micros();
+        aqi.read(&pmSensor);
+        endTime = micros();
+        log_d("PM25AQI read time: %lu us", endTime - startTime);
         break;
       }
 
-      case 6: {
-        log_d("we can turn off 5V and 3V");
+      case 12: {
+        log_d("SPENGO I PIN 5V");
         digitalWrite(PIN_5V, LOW);
-        digitalWrite(PIN_3V, LOW);
+        break;
       }
 
-      case 7: {
+
+      case 18: {
+        // --------- READ CCS811 ---------- //
+        if (!co2Sensor.read(bmeData.humidity, bmeData.temperature)) {
+          log_e("Non ho ottenuto i dati dal sensore CCS811.");
+        } 
+        to_serial(); // Stampa i dati su seriale per debug
+        break;
+      }
+      case 19: {
         // --------- Power Management ---------- //
         log_d("invio i dati power management");
-        unsigned long t0 = micros();   // Tempo iniziale in µs
         sendPowerManagementData();
-        unsigned long t1 = micros();   // Tempo finale in µs
-
-        log_d("Tempo di esecuzione: %d µs", t1 - t0);
         break;
       }
 
-      case 8: {
+      case 20: {
         // --------- Environment sensor ---------- //
         log_d("invio i dati environment sensor");
-        sendEnvironmentData();
-
+        sendEnvironmentData();        
         break;
       }      
 
-      case 9: {
+      case 21: {
         // --------- Smog sensor ---------- //
         log_d("invio i dati smog sensor");
-        //sendSmogData();
-
+        sendAirQualityData();
         break;
       }
 
-
-      case 10: {
+      case 22: {
+        digitalWrite(PIN_3V, LOW);
+        digitalWrite(PIN_WAK, HIGH);  // turn the WAK
         needsToStayActive = 0;
         break;
       }
+
       default:
         // do nothing
         break;
@@ -418,6 +429,8 @@ void led_blink_task(void* pvParameters) {
     vTaskDelayUntil(&lastWakeTime, period);
   }
 }
+
+
 
 void to_serial(void) {
   log_i("-------------------------------");
@@ -431,43 +444,98 @@ void to_serial(void) {
   log_i("-------------------------------");
   log_i("Raingauge level: %s [mm]", String(raingauge.getLevel()));
   log_i("-------------------------------");
-  log_i("INA3221 Battery Voltage: %s [V]", String(inaData.voltage[1]));
-  log_i("INA3221 Battery Current: %S [mA]", String(inaData.current[1]* 1000.0F)); // Converti da A a mA
-  log_i("INA3221 Battery Power: %S [W]", String(inaData.power[1]));
+  log_i("INA3221 Battery Voltage: %s [V]", String(inaData.voltage[BATTERY_IN]));
+  log_i("INA3221 Battery Current: %S [mA]", String(inaData.current[BATTERY_IN]* 1000.0F)); // Converti da A a mA
+  log_i("INA3221 Battery Power: %S [W]", String(inaData.power[BATTERY_IN]));
 
   log_i("INA3221 Battery SOC: %S [%]", String(inaData.soc));
 
-  log_i("INA3221 PANNEL Voltage: %s [V]", String(inaData.voltage[2]));
-  log_i("INA3221 PANNEL Current: %S [mA]", String(inaData.current[2]* 1000.0F)); // Converti da A a mA
-  log_i("INA3221 PANNEL Power: %S [W]", String(inaData.power[2]));
+  log_i("INA3221 PANNEL Voltage: %s [V]", String(inaData.voltage[PANNEL_IN]));
+  log_i("INA3221 PANNEL Current: %S [mA]", String(inaData.current[PANNEL_IN]* 1000.0F)); // Converti da A a mA
+  log_i("INA3221 PANNEL Power: %S [W]", String(inaData.power[PANNEL_IN]));
 
-  log_i("INA3221 LOAD Voltage: %s [V]", String(inaData.voltage[0]));
-  log_i("INA3221 LOAD Current: %S [mA]", String(inaData.current[0]* 1000.0F)); // Converti da A a mA
-  log_i("INA3221 LOAD Power: %S [W]", String(inaData.power[0]));
+  log_i("INA3221 LOAD Voltage: %s [V]", String(inaData.voltage[LOAD_IN]));
+  log_i("INA3221 LOAD Current: %S [mA]", String(inaData.current[LOAD_IN]* 1000.0F)); // Converti da A a mA
+  log_i("INA3221 LOAD Power: %S [W]", String(inaData.power[LOAD_IN]));
+
+  log_i("INA3221 Irradiance: %s [W/m^2]", String(inaData.irradiance));
+  log_i("INA3221 Cloud Cover: %S []", String(inaData.cloud_cover)); 
+
   log_i("-------------------------------");
   log_i("MICS6814 NH3 Value: %s [ppm]", String(micsData.NH3Value));
   log_i("MICS6814 CO Value: %s [ppm]", String(micsData.COValue));
-  log_i("MICS6814 NO2 Value: %s [ppm]", String(micsData.NO2Value));
+  log_i("MICS6814 NO2 Value: %s [ppm]", String(micsData.NO2Value, 4));
   log_i("-------------------------------");
-
+  log_i("Carbon Dioxide = %s [ppm]", String(co2Sensor.getCO2()));
+  log_i("Volatile Organic Compounds = %s [ppb]", String(co2Sensor.getTVOC()));
+  log_i("-------------------------------");
+  log_i("Air Quality Index = %s", String(airQuality.indiceQualita(pmSensor.pm100_standard, pmSensor.pm25_standard, co2Sensor.getCO2(), micsData.NO2Value, micsData.NH3Value, micsData.COValue), 1));
+  log_i("Air Quality Value = %s", airQuality.getAirQualityString());
+  log_i("-------------------------------");
+  log_i("Concentration Units (standard)");
+  log_i("PM 1.0: %s\t\t PM 2.5: %s\t\t PM 10: %s", String(pmSensor.pm10_standard), String(pmSensor.pm25_standard), String(pmSensor.pm100_standard));
+  log_i("Concentration Units (environmental)");
+  log_i("PM 1.0: %s\t\t PM 2.5: %s\t\t PM 10: %s", String(pmSensor.pm10_env), String(pmSensor.pm25_env), String(pmSensor.pm100_env));
+  log_i("---------------------------------------");
+  log_i("Particles > 0.3um / 0.1L air: %s", String(pmSensor.particles_03um));
+  log_i("Particles > 0.5um / 0.1L air: %s", String(pmSensor.particles_05um));
+  log_i("Particles > 1.0um / 0.1L air: %s", String(pmSensor.particles_10um));
+  log_i("Particles > 2.5um / 0.1L air: %s", String(pmSensor.particles_25um));
+  log_i("Particles > 5.0um / 0.1L air: %s", String(pmSensor.particles_50um));
+  log_i("Particles > 10 um / 0.1L air: %s", String(pmSensor.particles_100um));
+  log_i("---------------------------------------");
   // Aggiungi qui altre letture dei sensori se necessario
 }
-
 
 void sendDeviceEpoc() {
   DynamicJsonDocument doc(MAX_JSON_SIZE);
 
+  JsonObject epoc = doc.createNestedObject("epoc");
+  epoc["Giorno"] = rtc.getDay();
+  epoc["Mese"] = rtc.getMonth() + 1;
+  epoc["Anno"] = rtc.getYear();
+  epoc["Ore"] = rtc.getTime();  // solo se rtc.getTime() restituisce già una stringa
 
 
   publishJsonMessage("device_epoc", doc);
 }
 
 void sendDeviceStatus() {
-  DynamicJsonDocument doc(MAX_JSON_SIZE);
+  int rssi = WiFi.RSSI();  // Riceve il valore RSSI in dBm
+  String wifiPower;
+  if (rssi > -30){
+    log_i("Segnale WiFi eccellente");
+    wifiPower = "Eccellente";
+  } else if (rssi > -50) {
+    log_i("Segnale WiFi molto buono");
+    wifiPower = "Molto buono";
+  } else if (rssi > -60) {
+    log_i("Segnale WiFi buono");
+    wifiPower = "Buono";
+  } else if (rssi > -70) {
+    log_i("Segnale WiFi accettabile");
+    wifiPower = "Accettabile";
+  } else if (rssi > -80) {
+    log_i("Segnale WiFi scarso");
+    wifiPower = "Scarso";
+  } else {
+    log_i("Segnale WiFi quasi nullo");
+    wifiPower = "Quasi nullo";
+  }
 
+
+  DynamicJsonDocument doc(MAX_JSON_SIZE);
   doc["IterationCount"] = String(debugCount);  // se debugCount è int
+  doc["WIFISignal"] = String(rssi);
+  doc["WIFIQuality"] = wifiPower;
   doc["UpdateAvailable"] = avblUpdate;         // se è bool o int
   doc["SWVersion"] = String(otaUpdate.getCurrentFirmwareVersion());
+
+  JsonObject epoc = doc.createNestedObject("epoc");
+  epoc["Giorno"] = rtc.getDay();
+  epoc["Mese"] = rtc.getMonth() + 1;
+  epoc["Anno"] = rtc.getYear();
+  epoc["Ore"] = rtc.getTime();  // solo se rtc.getTime() restituisce già una stringa
 
   publishJsonMessage("device_status", doc);
 }
@@ -475,50 +543,94 @@ void sendDeviceStatus() {
 void sendEnvironmentData() {
   DynamicJsonDocument doc(MAX_JSON_SIZE);
 
+  JsonObject epoc = doc.createNestedObject("epoc");
+  epoc["Giorno"] = rtc.getDay();
+  epoc["Mese"] = rtc.getMonth() + 1;
+  epoc["Anno"] = rtc.getYear();
+  epoc["Ore"] = rtc.getTime();  // solo se rtc.getTime() restituisce già una stringa
+
   JsonObject environment_sensor = doc.createNestedObject("environment_sensor");
   environment_sensor["temperature"] = String(bmeData.temperature, 1);  // tipo float
   environment_sensor["humidity"] = String(bmeData.humidity);
+  environment_sensor["pressure"] = String(bmeData.pressure, 2);
+  environment_sensor["altitude"] = String(bmeData.altitude, 2);
 
-  environment_sensor["wind_direction"] = windvaneData.direction;
-  environment_sensor["wind_raw_angle"] = String(windvaneData.angle);
+  JsonObject wind_sensor = doc.createNestedObject("wind_sensor");
+  wind_sensor["wind_direction"] = windvaneData.direction;
+  wind_sensor["wind_angle"] = String(windvaneData.angle);
 
-  environment_sensor["NH3"] = String(micsData.NH3Value);
-  environment_sensor["CO"] = String(micsData.COValue);
-  environment_sensor["NO2"] = String(micsData.NO2Value);
+  JsonObject sun_sensor = doc.createNestedObject("sun_sensor");
+  sun_sensor["sunlight"] = String(inaData.irradiance);
+  sun_sensor["cloud_cover"] = String(inaData.cloud_cover);
+
+
+
   publishJsonMessage("environment_data", doc);
 }
 
 void sendPowerManagementData() {
   DynamicJsonDocument doc(MAX_JSON_SIZE);
 
+  JsonObject epoc = doc.createNestedObject("epoc");
+  epoc["Giorno"] = rtc.getDay();
+  epoc["Mese"] = rtc.getMonth() + 1;
+  epoc["Anno"] = rtc.getYear();
+  epoc["Ore"] = rtc.getTime();  // solo se rtc.getTime() restituisce già una stringa
+
   JsonObject power_management = doc.createNestedObject("power_management");
   power_management["SOC"] = inaData.soc; // Stato di carica stimato in percentuale
 
   JsonObject current = power_management.createNestedObject("Current");
-  current["Pannel"] = String(inaData.current[2] * 1000.0F, 2);
-  current["Battery"] = String(inaData.current[1] * 1000.0F, 2);
-  current["Load"] = String(inaData.current[0] * 1000.0F, 2);
+  current["Pannel"] = String(inaData.current[PANNEL_IN] * 1000.0F, 2);
+  current["Battery"] = String(inaData.current[BATTERY_IN] * 1000.0F, 2);
+  current["Load"] = String(inaData.current[LOAD_IN] * 1000.0F, 2);
 
   JsonObject voltage = power_management.createNestedObject("voltage");
-  voltage["Pannel"] = String(inaData.voltage[2] * 1000.0F, 0);
-  voltage["Battery"] = String(inaData.voltage[1] * 1000.0F, 0);
-  voltage["Load"] = String(inaData.voltage[0] * 1000.0F, 0);
+  voltage["Pannel"] = String(inaData.voltage[PANNEL_IN] * 1000.0F, 0);
+  voltage["Battery"] = String(inaData.voltage[BATTERY_IN] * 1000.0F, 0);
+  voltage["Load"] = String(inaData.voltage[LOAD_IN] * 1000.0F, 0);
 
   JsonObject power = power_management.createNestedObject("Power");
-  power["Pannel"] = String(inaData.power[2], 2);
-  power["Battery"] = String(inaData.power[1], 2);
-  power["Load"] =  String(inaData.power[0], 2);
+  power["Pannel"] = String(inaData.power[PANNEL_IN], 2);
+  power["Battery"] = String(inaData.power[BATTERY_IN], 2);
+  power["Load"] =  String(inaData.power[LOAD_IN], 2);
 
     publishJsonMessage("power_management", doc);
 }
 
-void sendSmogData() {
+void sendAirQualityData() {
   DynamicJsonDocument doc(MAX_JSON_SIZE);
-/*
-  JsonObject smog = doc.createNestedObject("smog");
-  smog["PM1"] = String(sensors.getPM1());
-  smog["PM2.5"] = String(sensors.getPM25());
-  smog["PM10"] = String(sensors.getPM10());
-*/
-  publishJsonMessage("smog_data", doc);
+
+  JsonObject epoc = doc.createNestedObject("epoc");
+  epoc["Giorno"] = rtc.getDay();
+  epoc["Mese"] = rtc.getMonth() + 1;
+  epoc["Anno"] = rtc.getYear();
+  epoc["Ore"] = rtc.getTime();  // solo se rtc.getTime() restituisce già una stringa
+
+  JsonObject air_sensor = doc.createNestedObject("air_sensor");
+  air_sensor["PM1"] = String(pmSensor.pm10_standard);
+  air_sensor["PM2.5"] = String(pmSensor.pm25_standard);
+  air_sensor["PM10"] = String(pmSensor.pm100_standard);
+
+  JsonObject gas_sensor = doc.createNestedObject("gas_sensor");
+  gas_sensor["NH3"] = String(micsData.NH3Value);
+  gas_sensor["CO"] = String(micsData.COValue);
+  gas_sensor["NO2"] = String(micsData.NO2Value, 4);
+  gas_sensor["CO2"] = String(co2Sensor.getCO2());
+  gas_sensor["tVOC"] = String(co2Sensor.getTVOC());
+  gas_sensor["baseline"] = String(co2Sensor.getBaseline());
+
+  JsonObject air_quality = doc.createNestedObject("air_quality");
+  air_quality["Index"] = String(airQuality.indiceQualita(pmSensor.pm100_standard, pmSensor.pm25_standard, co2Sensor.getCO2(), micsData.NO2Value, micsData.NH3Value, micsData.COValue), 1);
+  air_quality["Quality"] = airQuality.getAirQualityString();
+
+
+  publishJsonMessage("air_quality", doc);
 }
+
+
+
+
+
+
+

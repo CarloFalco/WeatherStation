@@ -22,22 +22,25 @@
 
 
 /* https://learn.microsoft.com/it-it/cpp/c-runtime-library/math-constants?view=msvc-170 */
-#define M_PI    3.141592        /* PIGRECO*/
-#define M_1_PI 	0.31831         /* 1/PIGRECO*/
-#define M_SQRT2 1.4142          /* sqrt(2)*/
+// #define M_PI    3.141592        /* PIGRECO*/
+// #define M_1_PI 	0.31831         /* 1/PIGRECO*/
+// #define M_SQRT2 1.4142          /* sqrt(2)*/
 
+// #define SWVERSION "1.0.0" // Versione del firmware
+#define SWVERSION_NUM 2025061501 // Versione del firmware in formato YYYYMMDDRR (RR = Release del giorno)
 
 // POWERLINE
 #define PIN_5V GPIO_NUM_11 // Pin 11 del GPIO, che è il pin 5V
 #define PIN_3V GPIO_NUM_4 // Pin 4 del GPIO, che è il pin 3V3
 
 
-#define TIME_TO_SLEEP  30  // Time to sleep in seconds // TODO: da ripristinare a 300
+#define TIME_TO_SLEEP  60  // Time to sleep in seconds // TODO: da ripristinare a 300
 #define TASK_FAST 500   // Task execution time in milliseconds
+#define TASK_CCS811 1000   // Task execution time in milliseconds
 
 
 // ANEMOMETER
-#define PIN_ANEMOMETER GPIO_NUM_19
+#define PIN_ANEMOMETER GPIO_NUM_20
 #define WAKEUP_PIN_1 PIN_ANEMOMETER  // Pin RTC 33
 
 #define ANEMOMETER_DIAMETER 80 * 2 * mm_TO_m_FACTOR
@@ -49,7 +52,7 @@
 
 
 // RAINGAUGE
-#define PIN_RAINGAUGE GPIO_NUM_20
+#define PIN_RAINGAUGE GPIO_NUM_19
 #define WAKEUP_PIN_2 PIN_RAINGAUGE  // Pin RTC 34
 
 
@@ -85,6 +88,13 @@
 // GASSENSOR CCS811
 #define CCS811_ADDRESS 0x5A
 #define PIN_WAK GPIO_NUM_41
+#define CCS811_BASELINE 5201 // Baseline value for CCS811 sensor, used for TVOC and CO2 calculations
+#define CCS811_MODE 1 // Mode for CCS811 sensor
+//Mode 0 = Idle
+//Mode 1 = read every 1s
+//Mode 2 = every 10s
+//Mode 3 = every 60s
+//Mode 4 = RAW mode
 
 // 0,3 mg/m³ ; 0,3 - 0,5 mg/m³; 0,5 - 1 mg/m³, 1 - 3 mg/m³, Oltre 3 mg/m³
 #define MAX_TVOC 600
@@ -93,8 +103,29 @@
 // CURRENT SENSOR INA
 #define INA_ADDRESS 0x40
 
+// definisce in che canale sono collegati i sensori
+#define PANNEL_IN 2 // PANNEL IN 
+#define BATTERY_IN 1 // BATTERY IN   
+#define LOAD_IN 0 // LOAD IN
+
+// predisposizione per considerare il verso della corrente
+#define PANNEL_DIR 0 // PANNEL IN A
+#define BATTERY_DIR 0 // BATTERY IN A   
+#define LOAD_DIR 0 // LOAD IN A
+
+#define AREA_PANNELLO_SOLARE 0.01 // Area del pannello solare in m² (esempio: 0.1 m²)
+#define EFFICIENZA_PANNELLO_SOLARE 0.15 // Efficienza del pannello solare (esempio: 15%)
+
+// PM25AQI
+#define PM25_TX 0x12 // PIN 18 (RX) del esp32-s3-devkitc-1
+#define PM25_RX 0x11 // PIN 17 (TX) del esp32-s3-devkitc-1
+#define PM25_UART_BAUDRATE 9600
+
+
+
 
 // LED
+#undef LED_BUILTIN
 #define LED_BUILTIN 97
 
 

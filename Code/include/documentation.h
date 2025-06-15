@@ -37,25 +37,27 @@ void WakeUp_Interrupt(void);
  * - Stabilisce la connessione WiFi tramite `setupWiFi()`.
  * - Inizializza l'aggiornamento OTA con `setupOtaUpdate()`.
  * - Inizializza il client MQTT con `mqtt_init()`.
- * - Crea un task per il lampeggio del LED (`led_blink_task`).
+ * - Crea un task per la gestione dei sensori (`sensor_task`).
  * - Imposta la variabile `needsToStayActive` a 1 per indicare che il dispositivo deve rimanere attivo.
  */
  
 void WakeUp_Timer(void);
 
-/** * @brief Task per il lampeggio del LED.
- * 
- * Questo task esegue il loop del client MQTT e gestisce il lampeggio del LED.
- * Il LED viene acceso e spento a intervalli regolari, e viene pubblicato un messaggio MQTT
- * quando il contatore raggiunge un certo valore.
+/** * @brief Task per la gestione dei sensori.
+ *
+ * Questo task esegue il loop del client MQTT e gestisce i dati dei sensori.
+ * I dati vengono letti dai sensori e inviati tramite MQTT.
+
  * 
  * @param pvParameters Parametri del task (non utilizzati in questo caso).
 */
-void led_blink_task(void* pvParameters);
+
+void sensor_task(void* pvParameters);
 
 
 void to_serial(void);
 
+void sendDeviceEpoc();
 
 void sendDeviceStatus();
 
@@ -63,7 +65,7 @@ void sendEnvironmentData();
 
 void sendPowerManagementData();
 
-void sendSmogData();
+void sendAirQualityData();
 
 
  #endif

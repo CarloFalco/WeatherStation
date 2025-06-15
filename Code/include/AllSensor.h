@@ -1,4 +1,5 @@
 
+
 #ifndef _ALL_SENSORS_H_
 #define _ALL_SENSORS_H_
 
@@ -359,6 +360,8 @@ class INA3211 : public Adafruit_INA3221 {
       float voltage[3];  /**< Tensione per ogni canale (V) */
       float power[3];    /**< Potenza per ogni canale (W) */
       int soc;           /**< Stato di carica stimato (%) */
+      int irradiance;    /**< Irraggiamento solare (W/m²) */
+      String cloud_cover; /**< Copertura nuvolosa */
     } INA;
 
     INA inaData;  /**< Dati letti dai 3 canali del sensore INA3211 */
@@ -391,6 +394,8 @@ class INA3211 : public Adafruit_INA3221 {
      */
     int vbToSoc(float Vmeas);
 
+    float readIrraggiamento(void);
+    String readCloudCover(void);
     /**
      * @brief Legge i dati dai 3 canali del sensore INA3221 e li memorizza in una struttura INA.
      */
@@ -451,22 +456,55 @@ int INA3211::vbToSoc(float Vmeas){
   return (int)0;
 }
 
+float INA3211::readIrraggiamento(){
+  float power = getPower(PANNEL_IN);
+  // Calcola l'irraggiamento solare in W/m²
+  if (power <= 0.0) {
+    return 0.0; // Evita divisioni per zero
+  }
+  power = power / EFFICIENZA_PANNELLO_SOLARE; // Considera l'efficienza del pannello solare
+  float irradiance = power / AREA_PANNELLO_SOLARE; // Potenza in W divisa per l'area in m²
+
+  // Converte l'irraggiamento in W/m²
+  irradiance = constrain(irradiance, 0.0, 1000.0); // Limita l'irraggiamento a un massimo di 1000 W/m²
+  return irradiance;
+}
+
+String INA3211::readCloudCover() {
+
+  float irradiance = readIrraggiamento();
+  if (irradiance > 800) {
+    return "Sereno";
+  } else if (irradiance > 500) {
+    return "Parzialmente nuvoloso";
+  } else if (irradiance > 200) {
+    return "Nuvoloso";
+  } else if (irradiance > 50) {
+    return "Molto nuvoloso";
+  } else {
+    return "Notte";
+  }
+
+}
+
 // TODO : Rivedere la struttura INA e il metodo read() per restituire un oggetto INA con i dati dei 3 canali.
 void INA3211::read() {
   for (uint8_t i = 0; i < 3; i++) {
-    inaData.current[i] = getCurrentAmps(i);
-    inaData.voltage[i] = getBusVoltage(i);
+    auto safe = [&](float v) { return v > 0 ? v : 0; };
+    inaData.current[i] = safe(getCurrentAmps(i));
+    inaData.voltage[i] = safe(getBusVoltage(i));
     inaData.power[i] = getPower(i);
   }
   if (CorrSOC == true) {
-      float battery_voltage = inaData.voltage[1] - inaData.current[1] * 0.01;
+      float battery_voltage = inaData.voltage[BATTERY_IN] - inaData.current[BATTERY_IN] * 0.01;
     // Se la correzione dello stato di carica è abilitata, sottrae 0.01V per compensare la caduta di tensione
     inaData.soc = vbToSoc(battery_voltage * 1000.0F); // Converti da V a mV
   }else{
     // Altrimenti, usa la tensione misurata direttamente
-    inaData.soc = vbToSoc(inaData.voltage[1] * 1000.0F); // Converti da V a mV
+    inaData.soc = vbToSoc(inaData.voltage[BATTERY_IN] * 1000.0F); // Converti da V a mV
   }
-  
+  inaData.irradiance = readIrraggiamento(); // Legge l'irraggiamento solare
+  inaData.cloud_cover = readCloudCover(); // Legge la copertura nuvolosa
 
   // return ina;
 }
@@ -531,5 +569,132 @@ void BME280::read() {
 BME280::BME BME280::getData(void){
   return bmeData;
 }
+
+
+
+
+
+
+/**
+ * @brief Calcola l'indice di qualità dell'aria in base ai valori dei principali inquinanti.
+ * 
+ * L'indice viene calcolato come media ponderata dei punteggi relativi a:
+ * - PM2.5 (particolato fine)
+ * - PM10 (particolato grossolano)
+ * - CO₂ (anidride carbonica)
+ * - NO₂ (biossido di azoto)
+ * - NH₃ (ammoniaca)
+ * - CO (monossido di carbonio)
+ * 
+ * Ogni parametro contribuisce all'indice secondo un peso specifico.
+ * 
+ * @param valPM25 Valore di PM2.5 in µg/m³.
+ * @param valPM10 Valore di PM10 in µg/m³. OMS: media giornaliera consigliata ≤ 45 µg/m³ Effetti respiratori visibili > 70 µg/m³
+ * @param valCO2 Valore di CO₂ in ppm.
+ * @param valNO2 Valore di NO₂ in ppm.  OMS: ≤ 25 ppb (media annuale), ≤ 106 ppb (1 ora) 200 ppb → sintomi respiratori acuti
+ * @param valNH3 Valore di NH₃ in ppm. Irritazione oculare già da 1 ppm Soglia olfattiva ≈ 0.2–0.4 ppm
+ * @param valCO Valore di CO in ppm. 15 ppm: potenziali effetti cardiovascolari
+ * @return Indice di qualità dell'aria (0-100), dove valori più alti indicano aria migliore.
+ */
+class AIRQuality {
+  public:
+
+    /*
+    PM2.5	30%	Molto pericoloso per i polmoni
+    PM10	15%	Meno penetrante
+    CO₂	15%	Disagio e ventilazione
+    NO₂	15%	Irritante respiratorio
+    NH₃	10%	Tossico ma meno comune
+    CO	15%	Tossico acuto
+    */
+    float indiceQualita(float valPM25, float valPM10, int valCO2, float valNO2, float valNH3, float valCO);
+    String getAirQualityString();
+
+  private:
+
+    int punteggioCO2(int ppm);
+    int punteggioPM25(float ugm3);
+    int punteggioPM10(float pm10);
+    int punteggioNO2(float no2_ppm);
+    int punteggioNH3(float nh3_ppm);
+    int punteggioCO(float co_ppm);
+
+    const float PESO_PM25 = 0.30;
+    const float PESO_PM10 = 0.15;
+    const float PESO_CO2  = 0.15;
+    const float PESO_NO2  = 0.15;
+    const float PESO_NH3  = 0.10;
+    const float PESO_CO   = 0.15;
+    float _score; /**< Punteggio totale dell'indice di qualità dell'aria */
+};
+
+
+int AIRQuality::punteggioCO2(int ppm) {
+  if (ppm <= 600) return 100;
+  if (ppm <= 1000) return 80;
+  if (ppm <= 1500) return 60;
+  if (ppm <= 2000) return 40;
+  return 20;
+}
+int AIRQuality::punteggioPM25(float ugm3) {
+  if (ugm3 <= 10) return 100;
+  if (ugm3 <= 25) return 80;
+  if (ugm3 <= 50) return 60;
+  if (ugm3 <= 75) return 40;
+  return 20;
+}
+
+int AIRQuality::punteggioPM10(float pm10) {
+  if (pm10 <= 20) return 100;
+  if (pm10 <= 40) return 80;
+  if (pm10 <= 70) return 60;
+  if (pm10 <= 100) return 40;
+  return 20;
+}
+int AIRQuality::punteggioNO2(float no2_ppm) {
+  float no2_ppb = no2_ppm * 1000;  // conversione ppm → ppb
+
+  if (no2_ppb <= 40) return 100;
+  if (no2_ppb <= 75) return 80;
+  if (no2_ppb <= 125) return 60;
+  if (no2_ppb <= 200) return 40;
+  return 20;
+}
+int AIRQuality::punteggioNH3(float nh3_ppm) {
+  if (nh3_ppm <= 0.2) return 100;
+  if (nh3_ppm <= 0.5) return 80;
+  if (nh3_ppm <= 1.0) return 60;
+  if (nh3_ppm <= 2.0) return 40;
+  return 20;
+}
+int AIRQuality::punteggioCO(float co_ppm) {
+  if (co_ppm <= 1) return 100;
+  if (co_ppm <= 5) return 80;
+  if (co_ppm <= 9) return 60;
+  if (co_ppm <= 15) return 40;
+  return 20;
+}
+
+float AIRQuality::indiceQualita(float valPM25, float valPM10, int valCO2, float valNO2, float valNH3, float valCO) { 
+  _score = 0;
+  _score += punteggioPM25(valPM25) * PESO_PM25;
+  _score += punteggioPM10(valPM10) * PESO_PM10;
+  _score += punteggioCO2(valCO2) * PESO_CO2;
+  _score += punteggioNO2(valNO2) * PESO_NO2;
+  _score += punteggioNH3(valNH3) * PESO_NH3;
+  _score += punteggioCO(valCO) * PESO_CO;
+  return _score;
+}
+
+String AIRQuality::getAirQualityString() {
+  float score = _score;
+  if (score >= 80) return "Eccellente";
+  else if (score >= 60) return "Buona";
+  else if (score >= 40) return "Moderata";
+  else if (score >= 20) return "Scarsa";
+  else return "Molto scarsa";
+} 
+
+
 
 #endif // _ALL_SENSORS_H_
