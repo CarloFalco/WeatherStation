@@ -338,9 +338,7 @@ void sensor_task(void* pvParameters) {
       case 3: {
         log_d("Update is avaiable");
         sendDeviceStatus();
-        if (avblUpdate == UPDATE_AVAILABLE) {
-          log_d("Update is available,");       
-        }
+
         break;
       }
       case 11: {
@@ -376,13 +374,12 @@ void sensor_task(void* pvParameters) {
         log_d("PM25AQI read time: %lu us", endTime - startTime);
         break;
       }
-
+      
       case 12: {
         log_d("SPENGO I PIN 5V");
         digitalWrite(PIN_5V, LOW);
         break;
       }
-
 
       case 18: {
         // --------- READ CCS811 ---------- //
