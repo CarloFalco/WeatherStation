@@ -18,9 +18,9 @@ class MICS6814
 public:
 
     typedef struct {
-      float NH3Value;        /**< Valore di NH3 in ppm */
-      float COValue;         /**< Valore di CO in ppm */
-      float NO2Value;       /**< Valore di NO2 in ppm */
+      float NH3Value = 0;        /**< Valore di NH3 in ppm */
+      float COValue = 0;         /**< Valore di CO in ppm */
+      float NO2Value = 0;       /**< Valore di NO2 in ppm */
     } MICS;
 
     MICS micsData;  /**< Dati letti dal sensore di direzione del vento */

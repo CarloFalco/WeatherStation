@@ -283,10 +283,26 @@ float MICS6814 :: getCurrentRatio (channel_t channel) const{
 }
 
 void MICS6814::read() {
+	/*
   auto safe = [&](float v) { return v > 0 ? v : 0; };
   micsData.NH3Value = safe(measure(NH3));
   micsData.COValue  = safe(measure(CO));
-  micsData.NO2Value = safe(measure(NO2));
+  float temp = 0.0;
+  for (int i = 0; i < 10; i++) {
+	temp += measure(NO2);
+  }
+	micsData.NO2Value = safe(temp / 10.0);
+	*/
+	unsigned long t1 = micros();
+	micsData.NH3Value = measure(NH3);
+	unsigned long t2 = micros();
+	micsData.COValue  = measure(CO);
+	unsigned long t3 = micros();
+	micsData.NO2Value = measure(NO2);
+	unsigned long t4 = micros();
+	log_d("MICS6814 read NH3: %lu us", t2 - t1);
+	log_d("MICS6814 read CO: %lu us", t3 - t2);
+	log_d("MICS6814 read NO2: %lu us", t4 - t3);
 }
 
 MICS6814 :: MICS MICS6814 :: getData(void) const{
