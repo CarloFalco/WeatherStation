@@ -443,6 +443,7 @@ void to_serial(void) {
   log_i("Velocità del vento: %s [*]", String(windvaneData.angle));
   log_i("-------------------------------");
   log_i("Raingauge level: %s [mm]", String(raingauge.getLevel()));
+  log_i("raingauge intensity: %s", raingauge.getRainIntensity());
   log_i("-------------------------------");
   log_i("INA3221 Battery Voltage: %s [V]", String(inaData.voltage[BATTERY_IN]));
   log_i("INA3221 Battery Current: %S [mA]", String(inaData.current[BATTERY_IN]* 1000.0F)); // Converti da A a mA
@@ -554,6 +555,10 @@ void sendEnvironmentData() {
   environment_sensor["humidity"] = String(bmeData.humidity);
   environment_sensor["pressure"] = String(bmeData.pressure, 2);
   environment_sensor["altitude"] = String(bmeData.altitude, 2);
+
+  JsonObject rain_sensor = doc.createNestedObject("rain_sensor");
+  rain_sensor["rain_intensity"] = String(raingauge.getLevel());
+  rain_sensor["rain_intensity"] = raingauge.getRainIntensity();
 
   JsonObject wind_sensor = doc.createNestedObject("wind_sensor");
   wind_sensor["wind_direction"] = windvaneData.direction;

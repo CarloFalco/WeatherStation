@@ -309,6 +309,11 @@ class Raingauge {
      * @return Quantità di pioggia (approssimata all'intero) in mm.
      */
     int getLevel(); 
+    /**
+     * @brief Restituisce una stringa che descrive l'intensità della pioggia.
+     * @return Stringa con l'intensità della pioggia (es. ).
+     */
+    String getRainIntensity();
 
   private:
     int _rainDroppCount;   /**< Conteggio degli scatti della bascula */
@@ -337,7 +342,13 @@ int Raingauge::getLevel(){
   return (int)_rainDropp;
 }
 
-// Dichiarazione del oggetto Energy Sensor
+String Raingauge::getRainIntensity(void) {
+  if (_rainDropp == 0) return "nessuna pioggia";
+  if (_rainDropp <= 2.5) return "pioggia leggera";
+  if (_rainDropp <= 7.6) return "pioggia moderata";
+  if (_rainDropp <= 50)  return "pioggia intensa";
+  return "pioggia molto intensa";
+}
 
 
 
