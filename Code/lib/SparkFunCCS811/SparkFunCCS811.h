@@ -46,6 +46,13 @@ Distributed as-is; no warranty is given.
 #define CSS811_APP_START 0xF4
 #define CSS811_SW_RESET 0xFF
 
+// Define default drive mode if not defined elsewhere
+#ifndef CCS811_MODE
+	#define CCS811_MODE 1 // 1 = read every 1s, see setDriveMode() for other options
+	#define CCS811_BASELINE 64370 // Baseline value for CCS811 sensor, used for TVOC and CO2 calculations
+#endif
+
+
 //This is the core operational class of the driver.
 //  CCS811Core contains only read and write operations towards the sensor.
 //  To use the higher level functions, use the class CCS811 which inherits
@@ -122,6 +129,7 @@ public:
 	uint16_t getCO2( void );
 	float getResistance( void );
 	float getTemperature( void );
+	bool read(float relativeHumidity, float temperature );
 	
 private:
 	//These are the air quality values obtained from the sensor
