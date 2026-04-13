@@ -230,7 +230,6 @@
                 "C:/Users/carlo/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/qio_qspi/include",
                 "C:/Users/carlo/.platformio/packages/framework-arduinoespressif32/cores/esp32",
                 "C:/Users/carlo/.platformio/packages/framework-arduinoespressif32/variants/esp32s3",
-                "D:/Progetti/WeatherStation/Code/.pio/libdeps/esp32-s3-devkitc-1/Unity/src",
                 "C:/Users/carlo/.platformio/packages/framework-arduinoespressif32/libraries/ArduinoOTA/src",
                 "C:/Users/carlo/.platformio/packages/framework-arduinoespressif32/libraries/AsyncUDP/src",
                 "C:/Users/carlo/.platformio/packages/framework-arduinoespressif32/libraries/BLE/src",
@@ -484,7 +483,6 @@
                     "C:/Users/carlo/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32s3/qio_qspi/include",
                     "C:/Users/carlo/.platformio/packages/framework-arduinoespressif32/cores/esp32",
                     "C:/Users/carlo/.platformio/packages/framework-arduinoespressif32/variants/esp32s3",
-                    "D:/Progetti/WeatherStation/Code/.pio/libdeps/esp32-s3-devkitc-1/Unity/src",
                     "C:/Users/carlo/.platformio/packages/framework-arduinoespressif32/libraries/ArduinoOTA/src",
                     "C:/Users/carlo/.platformio/packages/framework-arduinoespressif32/libraries/AsyncUDP/src",
                     "C:/Users/carlo/.platformio/packages/framework-arduinoespressif32/libraries/BLE/src",
@@ -515,7 +513,7 @@
                 ]
             },
             "defines": [
-                "PLATFORMIO=60118",
+                "PLATFORMIO=60119",
                 "ARDUINO_ESP32S3_DEV",
                 "ARDUINO_USB_MODE=1",
                 "ARDUINO_RUNNING_CORE=1",

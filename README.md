@@ -1,9 +1,8 @@
 # WeatherStation
-This program is based on ESP 32, to monitor the weather
-
 This program is based on [ESP32](https://github.com/CarloFalco/WeatherStation/tree/main/Datasheet/ESP32-38.png) to monitor the weather
 
 Il progetto è stato suddiviso in sottocartelle 
+vecchia struttura 
 
 | Cartella 		| Contenuto 		|
 | ------ 		| ------ 			|

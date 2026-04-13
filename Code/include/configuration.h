@@ -27,7 +27,7 @@
 // #define M_SQRT2 1.4142          /* sqrt(2)*/
 
 // #define SWVERSION "1.0.0" // Versione del firmware
-#define SWVERSION_NUM 2025061506 // Versione del firmware in formato YYYYMMDDRR (RR = Release del giorno)
+#define SWVERSION_NUM 2026080201 // Versione del firmware in formato YYYYMMDDRR (RR = Release del giorno)
 
 // POWERLINE
 #define PIN_5V GPIO_NUM_11 // Pin 11 del GPIO, che è il pin 5V
