@@ -1,44 +1,74 @@
-*letsEncryptCaCrt.h
-# Prerequisites
-*.d
-*secret.h
-*secret.cpp
+# =============================================================================
+# ESP32-S3 Weather Station – .gitignore
+# =============================================================================
 
+# ----- PlatformIO build artefacts -------------------------------------------
+.pio/
+.pioenvs/
+.piolibdeps/
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
+# ----- PlatformIO IDE support ------------------------------------------------
+.vscode/.browse.c_cpp.db*
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+.vscode/ipch/
 
-# Precompiled Headers
-*.gch
-*.pch
+# Keep VS Code workspace settings that are project-specific
+!.vscode/settings.json
+!.vscode/extensions.json
 
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
+# ----- Compiled output -------------------------------------------------------
+*.bin
+*.elf
+*.map
 
-# Fortran module files
-*.mod
-*.smod
+# Except firmware binaries intentionally added to GitHub Releases assets
+# (those are attached via `gh release upload`, not committed)
 
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
+# ----- Secrets / credentials -------------------------------------------------
+# The live config on device is NOT committed; only the template is.
+# Make sure secrets never end up in git.
+secrets.h
+credentials.h
+*.env
+.env.*
 
-# Executables
-*.exe
-*.out
-*.app
-*.log
-*.pdf
+# ----- macOS -----------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
 
-/Code/docs/latex/*.crt
-/Code/docs/latex/*.out
-/Code/docs/latex/*.tex
-/Code/docs
-/bck
+# ----- Windows ---------------------------------------------------------------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ----- Linux -----------------------------------------------------------------
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# ----- Doxygen generated docs ------------------------------------------------
+docs/html/
+docs/latex/
+docs/xml/
+docs/rtf/
+
+# ----- Python (if any helper scripts exist) ----------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+.eggs/
+*.egg-info/
+dist/
+build/
+
+# ----- Node (if any web tooling) ---------------------------------------------
+node_modules/
+npm-debug.log*
