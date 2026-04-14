@@ -115,5 +115,5 @@ private:
      * @param name  Parameter key as sent by the HTML form.
      * @return Decoded value string, empty if not present.
      */
-    String formParam(const String& name) const;
+    String formParam(const String& name) ;
 };

@@ -200,7 +200,7 @@ void Provisioning::sendPage(const String& title,
 // formParam()
 // ---------------------------------------------------------------------------
 
-String Provisioning::formParam(const String& name) const {
+String Provisioning::formParam(const String& name) {
     if (!_http.hasArg(name)) return String();
     String v = _http.arg(name);
     v.trim();

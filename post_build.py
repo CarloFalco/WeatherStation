@@ -23,7 +23,7 @@ import sys
 PROJECT_DIR  = env.subst("$PROJECT_DIR")
 BUILD_DIR    = env.subst("$BUILD_DIR")
 HEADER_FILE  = os.path.join(PROJECT_DIR, "include", "version.h")
-VERSION_TXT  = os.path.join(PROJECT_DIR, "version.txt")
+#VERSION_TXT  = os.path.join(PROJECT_DIR, "version.txt")
 FIRMWARE_SRC = os.path.join(BUILD_DIR, "firmware.bin")
 DOCS_SCRIPT  = os.path.join(PROJECT_DIR, "generate_docs.py")
 
@@ -119,12 +119,14 @@ else:
 print("[post_build] Firmware version : {}".format(_version))
 
 # 2. Write version.txt
+'''
 try:
     with open(VERSION_TXT, "w", encoding="utf-8") as _vf:
         _vf.write(_version + "\n")
     print("[post_build] version.txt written  : {}".format(VERSION_TXT))
 except OSError as _e:
     print("[post_build] ERROR writing version.txt: {}".format(_e))
+'''
 
 # 3. Copy versioned .bin (only if firmware.bin exists)
 if not os.path.isfile(FIRMWARE_SRC):
