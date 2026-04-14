@@ -173,3 +173,4 @@ Each increment milestone corresponds to a tagged GitHub Release.
 ## 📜 License
 
 MIT – see [LICENSE](LICENSE) for details.
+
