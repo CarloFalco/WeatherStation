@@ -70,7 +70,7 @@ in JSON format.  Firmware updates are delivered **OTA** via GitHub Releases.
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/<YOUR_USERNAME>/esp32-weather-station.git
+git clone https://github.com/CarloFalco/WeatherStation.git
 cd esp32-weather-station
 ```
 

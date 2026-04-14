@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather Station Setup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:   #2563eb;
+      --blue-d: #1d4ed8;
+      --green:  #16a34a;
+      --red:    #dc2626;
+      --bg:     #f1f5f9;
+      --card:   #ffffff;
+      --border: #cbd5e1;
+      --text:   #1e293b;
+      --muted:  #64748b;
+      --radius: 10px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      padding: 24px 16px 48px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    header .icon { font-size: 2.8rem; }
+    header h1 { font-size: 1.4rem; font-weight: 700; margin-top: 6px; }
+    header p  { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      max-width: 520px;
+      margin: 0 auto 20px;
+    }
+    .card-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block;
+      font-size: 0.88rem;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+    .field .hint {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+    .field input[type="text"],
+    .field input[type="password"],
+    .field input[type="number"] {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.95rem;
+      color: var(--text);
+      background: var(--bg);
+      outline: none;
+      transition: border-color .15s;
+    }
+    .field input:focus { border-color: var(--blue); background: #fff; }
+
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .required::after { content: ' *'; color: var(--red); }
+
+    details { margin-bottom: 20px; max-width: 520px; margin-left: auto; margin-right: auto; }
+    summary {
+      cursor: pointer;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 18px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--muted);
+      list-style: none;
+    }
+    summary::marker, summary::-webkit-details-marker { display: none; }
+    summary::after { content: ' ▸'; }
+    details[open] summary::after { content: ' ▾'; }
+    details[open] .card {
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+      border-top: none;
+      margin-top: 0;
+    }
+    details[open] summary {
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    .submit-wrap {
+      max-width: 520px;
+      margin: 0 auto;
+    }
+    button[type="submit"] {
+      width: 100%;
+      padding: 13px;
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    button[type="submit"]:hover  { background: var(--blue-d); }
+    button[type="submit"]:active { background: var(--blue-d); transform: scale(.98); }
+
+    .note {
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="icon">🌦️</div>
+  <h1>Weather Station Setup</h1>
+  <p>Fill in the fields below and press <strong>Save &amp; Restart</strong>.</p>
+</header>
+
+<form method="POST" action="/save">
+
+  <!-- ===== Wi-Fi ===== -->
+  <div class="card">
+    <div class="card-title">📶 Wi-Fi Network</div>
+
+    <div class="field">
+      <label for="wifi_ssid" class="required">Network SSID</label>
+      <input type="text" id="wifi_ssid" name="wifi_ssid"
+             placeholder="MyHomeNetwork" required autocomplete="off" />
+    </div>
+    <div class="field">
+      <label for="wifi_password">Password</label>
+      <input type="password" id="wifi_password" name="wifi_password"
+             placeholder="Leave empty for open networks" autocomplete="off" />
+    </div>
+  </div>
+
+  <!-- ===== MQTT ===== -->
+  <div class="card">
+    <div class="card-title">📡 MQTT Broker</div>
+
+    <div class="field">
+      <label for="mqtt_host" class="required">Broker Host / IP</label>
+      <input type="text" id="mqtt_host" name="mqtt_host"
+             placeholder="192.168.1.100 or broker.example.com" required />
+    </div>
+
+    <div class="row-2">
+      <div class="field">
+        <label for="mqtt_port">Port</label>
+        <input type="number" id="mqtt_port" name="mqtt_port"
+               value="1883" min="1" max="65535" />
+      </div>
+      <div class="field">
+        <label for="mqtt_client_id">Client ID</label>
+        <input type="text" id="mqtt_client_id" name="mqtt_client_id"
+               placeholder="weather-station-01" />
+      </div>
+    </div>
+
+    <div class="row-2">
+      <div class="field">
+        <label for="mqtt_user">Username</label>
+        <input type="text" id="mqtt_user" name="mqtt_user"
+               placeholder="(optional)" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="mqtt_password">Password</label>
+        <input type="password" id="mqtt_password" name="mqtt_password"
+               placeholder="(optional)" autocomplete="off" />
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="base_topic">Base Topic Prefix</label>
+      <input type="text" id="base_topic" name="base_topic"
+             placeholder="weather/station01" />
+      <div class="hint">All sensor data will be published under this prefix.</div>
+    </div>
+  </div>
+
+  <!-- ===== OTA / GitHub ===== -->
+  <div class="card">
+    <div class="card-title">🔄 OTA Updates (GitHub)</div>
+
+    <div class="field">
+      <label for="github_repo">GitHub Repository</label>
+      <input type="text" id="github_repo" name="github_repo"
+             placeholder="username/esp32-weather-station" />
+      <div class="hint">The firmware release <code>.bin</code> will be downloaded from here.</div>
+    </div>
+    <div class="field">
+      <label for="github_token">Personal Access Token</label>
+      <input type="password" id="github_token" name="github_token"
+             placeholder="(leave empty for public repos)" autocomplete="off" />
+    </div>
+  </div>
+
+  <!-- ===== Sampling intervals (collapsible) ===== -->
+  <details>
+    <summary>⚙️ Sampling &amp; Power Settings</summary>
+    <div class="card">
+      <div class="card-title">Sensor sampling intervals (seconds)</div>
+
+      <div class="row-2">
+        <div class="field">
+          <label for="bme280_s">BME280 (temp/hum/pres)</label>
+          <input type="number" id="bme280_s" name="bme280_s" value="60" min="5" />
+        </div>
+        <div class="field">
+          <label for="rain_s">Rain gauge window</label>
+          <input type="number" id="rain_s" name="rain_s" value="60" min="10" />
+        </div>
+        <div class="field">
+          <label for="wind_s">Wind speed / direction</label>
+          <input type="number" id="wind_s" name="wind_s" value="10" min="5" />
+        </div>
+        <div class="field">
+          <label for="pm25_s">PM2.5 (PMSA003)</label>
+          <input type="number" id="pm25_s" name="pm25_s" value="120" min="10" />
+        </div>
+        <div class="field">
+          <label for="ccs811_s">CCS811 (eCO₂/TVOC)</label>
+          <input type="number" id="ccs811_s" name="ccs811_s" value="120" min="10" />
+        </div>
+        <div class="field">
+          <label for="mics_s">MICS6814 (gases)</label>
+          <input type="number" id="mics_s" name="mics_s" value="120" min="10" />
+        </div>
+        <div class="field">
+          <label for="ina_s">INA3221 (power)</label>
+          <input type="number" id="ina_s" name="ina_s" value="60" min="5" />
+        </div>
+      </div>
+
+      <div class="card-title" style="margin-top:16px;">MQTT &amp; sleep</div>
+      <div class="row-2">
+        <div class="field">
+          <label for="publish_s">MQTT publish interval (s)</label>
+          <input type="number" id="publish_s" name="publish_s" value="300" min="30" />
+        </div>
+        <div class="field">
+          <label for="sleep_s">Deep-sleep duration (s)</label>
+          <input type="number" id="sleep_s" name="sleep_s" value="300" min="30" />
+          <div class="hint">Set to 0 to disable deep sleep (debug).</div>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <!-- ===== Submit ===== -->
+  <div class="submit-wrap">
+    <button type="submit">💾 Save &amp; Restart</button>
+    <p class="note">* Required fields &nbsp;|&nbsp; The device will restart after saving.</p>
+  </div>
+
+</form>
+</body>
+</html>
