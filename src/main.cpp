@@ -2,9 +2,10 @@
  * @file main.cpp
  * @brief WeatherStation V2 firmware entry point.
  *
- * Increment 1: boot banner + runtime configuration loaded from
- * /config.ini on LittleFS (AppConfig). The real wake -> measure ->
- * transmit -> deep-sleep cycle is introduced in later increments.
+ * Increment 2: real duty cycle skeleton. Every wake-up runs setup() from
+ * scratch: banner -> load configuration -> (sensors and LoRa in the next
+ * increments) -> deep sleep for station.wakeIntervalS seconds. loop() is
+ * never reached.
  */
 
 #include <Arduino.h>
@@ -12,57 +13,56 @@
 #include "config.h"
 #include "version.h"
 #include "core/AppConfig.h"
+#include "core/PowerManager.h"
 
 /// Station runtime configuration, loaded from LittleFS at boot.
 static AppConfig appConfig;
+/// Deep-sleep and wake-up cause management.
+static PowerManager power;
 
 /**
- * @brief Return a human-readable description of the ESP32 wake-up cause.
+ * @brief Blink the status LED a few times to signal activity.
  *
- * Useful to distinguish a cold boot from a timer wake-up (periodic
- * measurement) or an external wake-up (rain gauge pulse).
- *
- * @return Static string describing the cause of the last wake-up.
+ * @param times Number of blinks.
  */
-static const char *wakeupReasonToString() {
-    switch (esp_sleep_get_wakeup_cause()) {
-        case ESP_SLEEP_WAKEUP_TIMER:    return "timer (periodic wake-up)";
-        case ESP_SLEEP_WAKEUP_EXT0:     return "external signal (EXT0)";
-        case ESP_SLEEP_WAKEUP_EXT1:     return "external signal (EXT1)";
-        case ESP_SLEEP_WAKEUP_ULP:      return "ULP coprocessor";
-        case ESP_SLEEP_WAKEUP_UNDEFINED:
-        default:                        return "power-on / reset (cold boot)";
+static void blink(uint8_t times) {
+    pinMode(STATUS_LED_PIN, OUTPUT);
+    for (uint8_t i = 0; i < times; i++) {
+        digitalWrite(STATUS_LED_PIN, HIGH);
+        delay(80);
+        digitalWrite(STATUS_LED_PIN, LOW);
+        delay(120);
     }
 }
 
 void setup() {
     Serial.begin(115200);
-    delay(2000);  // give USB-CDC time to enumerate so the banner is visible
+    delay(2000);  // give USB-CDC time to enumerate so the log is visible
+
+    power.begin();
 
     Serial.println();
     Serial.println("============================================");
     Serial.printf("  WeatherStation V2 - fw v%s\n", FW_VERSION);
     Serial.println("============================================");
-    Serial.printf("Wake-up cause : %s\n", wakeupReasonToString());
-    Serial.printf("CPU frequency : %lu MHz\n", (unsigned long)getCpuFrequencyMhz());
-    Serial.printf("Free heap     : %lu bytes\n", (unsigned long)ESP.getFreeHeap());
+    Serial.printf("Boot count    : %lu%s\n", (unsigned long)g_rtcState.bootCount,
+                  power.isColdBoot() ? " (cold boot)" : "");
+    Serial.printf("Wake-up cause : %s\n", power.wakeupCauseString());
     Serial.println();
 
     appConfig.begin();
     appConfig.printTo(Serial);
 
-    pinMode(STATUS_LED_PIN, OUTPUT);
+    // --- Measurement window -------------------------------------------------
+    // Increment 3+: read sensors here and transmit the JSON over LoRa.
+    blink(3);
+
+    // --- Back to sleep ------------------------------------------------------
+    Serial.printf("\nEntering deep sleep for %lu s\n",
+                  (unsigned long)appConfig.station.wakeIntervalS);
+    power.deepSleep(appConfig.station.wakeIntervalS);
 }
 
 void loop() {
-    // Increment 0 heartbeat: 1 s blink + periodic log line.
-    digitalWrite(STATUS_LED_PIN, HIGH);
-    delay(100);
-    digitalWrite(STATUS_LED_PIN, LOW);
-    delay(900);
-
-    static uint32_t seconds = 0;
-    if (++seconds % 10 == 0) {
-        Serial.printf("[heartbeat] alive for %lu s\n", (unsigned long)seconds);
-    }
+    // Never reached: every cycle ends in deep sleep and restarts from setup().
 }

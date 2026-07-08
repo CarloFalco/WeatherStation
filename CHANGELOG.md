@@ -3,6 +3,18 @@
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/);
 il progetto segue il [Semantic Versioning](https://semver.org/).
 
+## [2.2.0] – 2026-07-08 — Increment 2: PowerManager e deep sleep
+
+### Added
+- Modulo `PowerManager` (`src/core/`): classificazione della causa di
+  wake-up, deep sleep con timer armato su `wake_interval_s`.
+- `include/rtc_state.h`: struttura `RtcState` in RTC RAM che sopravvive ai
+  deep sleep (boot count, contatore `seq` dei messaggi, impulsi pioggia —
+  questi ultimi usati dall'Increment 4).
+- `main.cpp` ristrutturato nel ciclo reale: wake → banner con boot count →
+  config → finestra di misura (placeholder) → deep sleep. `loop()` non
+  viene mai raggiunto.
+
 ## [2.1.0] – 2026-07-08 — Increment 1: configurazione runtime e protocollo LoRa
 
 ### Added
