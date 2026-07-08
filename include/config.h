@@ -31,7 +31,9 @@
 #define I2C_SCL    GPIO_NUM_5   ///< I2C clock
 
 /// BME280 temperature/humidity/pressure sensor I2C address.
-#define BME280_ADDRESS 0x76
+/// (Named *_I2C_ADDR because the Adafruit driver already defines
+/// BME280_ADDRESS as its 0x77 default.)
+#define BME280_I2C_ADDR 0x76
 /// AS5600 magnetic encoder (wind direction) I2C address.
 #define AS5600_ADDRESS 0x36
 /// INA3221 3-channel current monitor (panel/battery/load) I2C address.

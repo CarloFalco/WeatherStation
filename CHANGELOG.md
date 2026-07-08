@@ -3,6 +3,22 @@
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/);
 il progetto segue il [Semantic Versioning](https://semver.org/).
 
+## [2.3.0] – 2026-07-08 — Increment 3: interfaccia sensori e BME280
+
+### Added
+- Interfaccia `ISensor` (`src/sensors/`): punto di estensione del firmware —
+  un nuovo sensore = una classe + una riga di registrazione, senza toccare
+  `main.cpp` né il futuro modulo LoRa.
+- `SensorManager`: registro dei sensori; un sensore guasto viene marcato
+  unhealthy e saltato (i suoi campi JSON restano assenti, come da protocollo)
+  senza bloccare gli altri.
+- `Bme280Sensor`: primo sensore reale (I2C 0x76) con profilo Bosch "weather
+  monitoring" (forced mode, oversampling 1x, filtro off) → campi `t`, `rh`, `p`.
+- `main.cpp`: finestra di misura reale — compone il JSON di telemetria
+  (`type`, `id`, `fw`, `seq` da RTC RAM + campi sensori) e lo stampa su
+  seriale in forma compatta, identica a quella che viaggerà via LoRa.
+- Dipendenze: ArduinoJson 7, Adafruit BME280 Library.
+
 ## [2.2.0] – 2026-07-08 — Increment 2: PowerManager e deep sleep
 
 ### Added

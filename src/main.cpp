@@ -2,23 +2,31 @@
  * @file main.cpp
  * @brief WeatherStation V2 firmware entry point.
  *
- * Increment 2: real duty cycle skeleton. Every wake-up runs setup() from
- * scratch: banner -> load configuration -> (sensors and LoRa in the next
- * increments) -> deep sleep for station.wakeIntervalS seconds. loop() is
- * never reached.
+ * Increment 3: the measurement window is real. Every wake-up: banner ->
+ * load configuration -> read all registered sensors -> assemble the
+ * telemetry JSON (printed on serial; sent over LoRa from Increment 7) ->
+ * deep sleep for station.wakeIntervalS seconds. loop() is never reached.
  */
 
 #include <Arduino.h>
+#include <ArduinoJson.h>
+#include <Wire.h>
 
 #include "config.h"
 #include "version.h"
 #include "core/AppConfig.h"
 #include "core/PowerManager.h"
+#include "sensors/Bme280Sensor.h"
+#include "sensors/SensorManager.h"
 
 /// Station runtime configuration, loaded from LittleFS at boot.
 static AppConfig appConfig;
 /// Deep-sleep and wake-up cause management.
 static PowerManager power;
+/// Registry of all station sensors.
+static SensorManager sensors;
+/// Temperature / humidity / pressure sensor.
+static Bme280Sensor bme280;
 
 /**
  * @brief Blink the status LED a few times to signal activity.
@@ -54,7 +62,27 @@ void setup() {
     appConfig.printTo(Serial);
 
     // --- Measurement window -------------------------------------------------
-    // Increment 3+: read sensors here and transmit the JSON over LoRa.
+    Wire.begin(I2C_SDA, I2C_SCL);
+
+    sensors.add(&bme280);
+    size_t healthy = sensors.beginAll();
+    Serial.printf("\nSensors ready : %u\n", (unsigned)healthy);
+
+    JsonDocument doc;
+    JsonObject msg = doc.to<JsonObject>();
+    msg["type"] = "data";
+    msg["id"] = appConfig.station.id;
+    msg["fw"] = FW_VERSION;
+    msg["seq"] = ++g_rtcState.msgSeq;
+    sensors.readAll(msg);
+
+    // From Increment 7 this payload goes to the LoRa link; for now it is
+    // printed so the cycle can be validated end-to-end on serial.
+    String payload;
+    serializeJson(doc, payload);
+    Serial.printf("Telemetry (%u bytes): %s\n",
+                  (unsigned)payload.length(), payload.c_str());
+
     blink(3);
 
     // --- Back to sleep ------------------------------------------------------
