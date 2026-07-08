@@ -2,16 +2,19 @@
  * @file main.cpp
  * @brief WeatherStation V2 firmware entry point.
  *
- * Increment 0: boot scaffold only. Prints a banner with the firmware
- * version and the wake-up cause, then blinks the status LED as a
- * heartbeat. The real wake -> measure -> transmit -> deep-sleep cycle
- * is introduced in later increments.
+ * Increment 1: boot banner + runtime configuration loaded from
+ * /config.ini on LittleFS (AppConfig). The real wake -> measure ->
+ * transmit -> deep-sleep cycle is introduced in later increments.
  */
 
 #include <Arduino.h>
 
 #include "config.h"
 #include "version.h"
+#include "core/AppConfig.h"
+
+/// Station runtime configuration, loaded from LittleFS at boot.
+static AppConfig appConfig;
 
 /**
  * @brief Return a human-readable description of the ESP32 wake-up cause.
@@ -43,6 +46,10 @@ void setup() {
     Serial.printf("Wake-up cause : %s\n", wakeupReasonToString());
     Serial.printf("CPU frequency : %lu MHz\n", (unsigned long)getCpuFrequencyMhz());
     Serial.printf("Free heap     : %lu bytes\n", (unsigned long)ESP.getFreeHeap());
+    Serial.println();
+
+    appConfig.begin();
+    appConfig.printTo(Serial);
 
     pinMode(STATUS_LED_PIN, OUTPUT);
 }
