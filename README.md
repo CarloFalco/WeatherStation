@@ -11,7 +11,7 @@ in JSON format.  Firmware updates are delivered **OTA** via GitHub Releases.
 | Feature | Status |
 |---|---|
 | Provisioning via captive-portal Wi-Fi AP | ✅ v0.1.0 |
-| INI-based runtime configuration on LittleFS | ✅ v0.1.0 |
+| INI-based runtime configuration on LittleFS and doxygen documentation| ✅ v0.1.0 |
 | FreeRTOS task architecture + deep-sleep | 🚧 v0.2.0 (Increment 1) |
 | Sensor drivers (BME280, AS5600, INA3221 …) | 🚧 v0.3.0 (Increment 2) |
 | MQTT JSON publishing | 🚧 v0.4.0 (Increment 3) |
