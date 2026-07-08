@@ -1,0 +1,38 @@
+# Builds the firmware and attaches the .bin to a GitHub Release
+# whenever a SemVer tag (vX.Y.Z) is pushed.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build firmware
+        run: pio run -e station
+
+      - name: Rename firmware binary
+        run: cp .pio/build/station/firmware.bin WeatherStation_${{ github.ref_name }}.bin
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: WeatherStation_${{ github.ref_name }}.bin
+          generate_release_notes: true
+          body: |
+            Vedi [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${{ github.ref_name }}/CHANGELOG.md) per i dettagli.
