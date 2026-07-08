@@ -24,12 +24,11 @@
 
 // ---------------------------------------------------------------------------
 // I2C bus (BME280, AS5600, INA3221)
-// TODO(increment 3): confirm the actual SDA/SCL wiring with the user.
 // The ESP32-S3 Arduino defaults (SDA=8, SCL=9) clash with LORA_DIO0/LORA_RST,
-// so the bus MUST be remapped. Provisional assignment below.
+// so the bus is remapped to GPIO 4/5.
 // ---------------------------------------------------------------------------
-#define I2C_SDA    GPIO_NUM_4   ///< I2C data  (provisional, to be confirmed)
-#define I2C_SCL    GPIO_NUM_5   ///< I2C clock (provisional, to be confirmed)
+#define I2C_SDA    GPIO_NUM_4   ///< I2C data
+#define I2C_SCL    GPIO_NUM_5   ///< I2C clock
 
 /// BME280 temperature/humidity/pressure sensor I2C address.
 #define BME280_ADDRESS 0x76
@@ -46,10 +45,7 @@
 
 // ---------------------------------------------------------------------------
 // Misc
-// TODO(increment 0 validation): requirements said "LED_BUILTIN 97" which is
-// not a valid ESP32-S3 GPIO (max 48). GPIO 48 drives the on-board RGB LED on
-// most S3 devkits; adjust after the first flash test.
 // ---------------------------------------------------------------------------
-#define STATUS_LED_PIN GPIO_NUM_48  ///< On-board status LED (to be confirmed)
+#define STATUS_LED_PIN LED_BUILTIN  ///< On-board status LED (validated on hardware)
 
 #endif // WEATHERSTATION_CONFIG_H

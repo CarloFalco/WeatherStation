@@ -31,12 +31,12 @@
 
 ## TODO per lo step successivo (Increment 1 – AppConfig)
 
-- [ ] **Validazione hardware step 0**: flash, verifica banner su seriale e LED.
-- [ ] Confermare il GPIO del LED di stato (requisiti indicavano "97", non
-      valido su ESP32-S3; provvisoriamente GPIO 48).
-- [ ] Confermare i pin I2C reali (provvisori SDA=4, SCL=5: i default S3
-      SDA=8/SCL=9 collidono con LORA_DIO0/LORA_RST).
-- [ ] Comunicare il taglio di flash del modulo (N8? N16?) per eventuale
-      ampliamento delle partizioni.
+- [x] **Validazione hardware step 0**: flash, verifica banner su seriale e LED. ✔ 2026-07-08
+- [x] Confermare il GPIO del LED di stato → `LED_BUILTIN` funziona sulla
+      scheda dell'utente.
+- [x] Confermare i pin I2C reali → SDA=4, SCL=5 confermati.
+- [x] Taglio di flash del modulo → **N16R8** (16MB flash, 8MB PSRAM):
+      partizioni ampliate a 16MB (slot OTA 4MB + LittleFS ~7.9MB);
+      PSRAM lasciata disattivata per contenere i consumi.
 - [ ] Implementare `AppConfig` (`/config.ini` su LittleFS) con i parametri:
       `station_id`, `wake_interval_s`, sezione `[lora]`.
