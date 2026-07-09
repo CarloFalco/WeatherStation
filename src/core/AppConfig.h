@@ -54,7 +54,9 @@ public:
 
     /** @brief `[power]` section: INA3221 energy monitor. */
     struct PowerConfig {
-        uint32_t shuntMohm = 10;  ///< Shunt resistance [milliohm], all channels.
+        uint32_t shuntMohm = 100;  ///< Shunt resistance [milliohm], all channels
+                                   ///< (hardware-verified against a reference
+                                   ///< current during Increment 6 validation).
     };
 
     /** @brief `[lora]` section: SX1276 radio parameters (see docs/lora-protocol.md). */

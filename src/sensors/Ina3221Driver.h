@@ -98,7 +98,7 @@ private:
     static constexpr uint16_t kMaskConvReady = 0x0001;  ///< CVRF flag.
 
     uint8_t _addr;              ///< 7-bit I2C address.
-    uint32_t _shuntMohm = 10;   ///< Shunt resistance [milliohm].
+    uint32_t _shuntMohm = 100;  ///< Shunt resistance [milliohm].
 };
 
 #endif // WEATHERSTATION_INA3221DRIVER_H
