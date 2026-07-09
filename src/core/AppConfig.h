@@ -44,6 +44,14 @@ public:
                                      ///< volume / collector area = 3 cm3 / 63.25 cm2.
     };
 
+    /** @brief `[wind]` section: anemometer calibration and vane mounting offset. */
+    struct WindConfig {
+        float   mpsPerHz      = 0.667f;  ///< Wind speed per pulse frequency [m/s per Hz]
+                                         ///< (cup anemometer convention "1 Hz = 2.4 km/h").
+        uint8_t sampleWindowS = 5;       ///< Wind sampling window per cycle [s].
+        int16_t vaneOffsetDeg = 0;       ///< Added to the AS5600 raw angle to align 0 to North.
+    };
+
     /** @brief `[lora]` section: SX1276 radio parameters (see docs/lora-protocol.md). */
     struct LoraConfig {
         float   freqMhz    = 868.1f;  ///< Carrier frequency [MHz], EU868 band.
@@ -84,6 +92,7 @@ public:
 
     StationConfig station;  ///< Active `[station]` values.
     RainConfig    rain;     ///< Active `[rain]` values.
+    WindConfig    wind;     ///< Active `[wind]` values.
     LoraConfig    lora;     ///< Active `[lora]` values.
 
 private:

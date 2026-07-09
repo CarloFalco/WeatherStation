@@ -3,6 +3,20 @@
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/);
 il progetto segue il [Semantic Versioning](https://semver.org/).
 
+## [2.5.0] – 2026-07-09 — Increment 5: anemometro e banderuola
+
+### Added
+- `Anemometer` (`src/sensors/`): conteggio impulsi su GPIO 20 in una
+  finestra di campionamento a bin da 1 s → `ws` (media) e `wg` (raffica,
+  bin più alto) in m/s. Debounce 5 ms.
+- `WindVane` (`src/sensors/`): lettura AS5600 via I2C diretta (registri
+  raw angle + verifica presenza magnete al `begin()`) → `wd` [°, 0–359,
+  0 = Nord]. Nessuna libreria esterna.
+- Sezione `[wind]` in `config.ini`: `mps_per_hz` (default 0.667 =
+  "1 Hz = 2.4 km/h", da sostituire col dato di targa reale),
+  `sample_window_s` (default 5), `vane_offset_deg` (offset di montaggio,
+  taratura sul campo puntando la banderuola a Nord).
+
 ## [2.4.0] – 2026-07-09 — Increment 4: pluviometro e wake-on-rain
 
 ### Added

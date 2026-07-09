@@ -97,6 +97,28 @@ void AppConfig::applyKey(const String &section, const String &key, const String 
         return;
     }
 
+    if (section == "wind") {
+        if (key == "mps_per_hz") {
+            float v = value.toFloat();
+            if (v > 0.0f && v < 10.0f) {
+                wind.mpsPerHz = v;
+            } else {
+                log_w("config.ini: mps_per_hz=%s out of range (0..10), keeping %.3f",
+                      value.c_str(), wind.mpsPerHz);
+            }
+        } else if (key == "sample_window_s") {
+            long v = value.toInt();
+            wind.sampleWindowS = (uint8_t)constrain(v, 1L, 30L);
+        } else if (key == "vane_offset_deg") {
+            long v = value.toInt();
+            // Normalize any input to 0..359.
+            wind.vaneOffsetDeg = (int16_t)(((v % 360) + 360) % 360);
+        } else {
+            log_w("config.ini: unknown key [wind] %s", key.c_str());
+        }
+        return;
+    }
+
     if (section == "lora") {
         if (key == "freq_mhz") {
             lora.freqMhz = value.toFloat();
@@ -141,6 +163,11 @@ bool AppConfig::save() const {
     file.println("[rain]");
     file.printf("mm_per_pulse = %.4f\n", rain.mmPerPulse);
     file.println();
+    file.println("[wind]");
+    file.printf("mps_per_hz = %.3f\n", wind.mpsPerHz);
+    file.printf("sample_window_s = %u\n", wind.sampleWindowS);
+    file.printf("vane_offset_deg = %d\n", wind.vaneOffsetDeg);
+    file.println();
     file.println("[lora]");
     file.printf("freq_mhz = %.1f\n", lora.freqMhz);
     file.printf("bw_khz = %.1f\n", lora.bwKhz);
@@ -158,6 +185,9 @@ void AppConfig::printTo(Stream &out) const {
     out.printf("  [station] id              = %s\n", station.id.c_str());
     out.printf("  [station] wake_interval_s = %lu\n", (unsigned long)station.wakeIntervalS);
     out.printf("  [rain]    mm_per_pulse    = %.4f\n", rain.mmPerPulse);
+    out.printf("  [wind]    mps_per_hz      = %.3f\n", wind.mpsPerHz);
+    out.printf("  [wind]    sample_window_s = %u\n", wind.sampleWindowS);
+    out.printf("  [wind]    vane_offset_deg = %d\n", wind.vaneOffsetDeg);
     out.printf("  [lora]    freq_mhz        = %.1f\n", lora.freqMhz);
     out.printf("  [lora]    bw_khz          = %.1f\n", lora.bwKhz);
     out.printf("  [lora]    sf              = %u\n", lora.sf);

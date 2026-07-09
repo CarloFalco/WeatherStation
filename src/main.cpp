@@ -18,9 +18,11 @@
 #include "version.h"
 #include "core/AppConfig.h"
 #include "core/PowerManager.h"
+#include "sensors/Anemometer.h"
 #include "sensors/Bme280Sensor.h"
 #include "sensors/RainGauge.h"
 #include "sensors/SensorManager.h"
+#include "sensors/WindVane.h"
 
 /// Station runtime configuration, loaded from LittleFS at boot.
 static AppConfig appConfig;
@@ -32,6 +34,10 @@ static SensorManager sensors;
 static Bme280Sensor bme280;
 /// Tipping-bucket rain gauge.
 static RainGauge rainGauge;
+/// Cup anemometer (wind speed and gust).
+static Anemometer anemometer;
+/// AS5600 wind vane (wind direction).
+static WindVane windVane;
 
 /**
  * @brief Blink the status LED a few times to signal activity.
@@ -84,8 +90,12 @@ void setup() {
     Wire.begin(I2C_SDA, I2C_SCL);
 
     rainGauge.configure(appConfig.rain.mmPerPulse);
+    anemometer.configure(appConfig.wind.mpsPerHz, appConfig.wind.sampleWindowS);
+    windVane.configure(appConfig.wind.vaneOffsetDeg);
     sensors.add(&bme280);
     sensors.add(&rainGauge);
+    sensors.add(&anemometer);
+    sensors.add(&windVane);
     size_t healthy = sensors.beginAll();
     Serial.printf("\nSensors ready : %u\n", (unsigned)healthy);
 
