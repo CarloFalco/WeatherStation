@@ -9,8 +9,10 @@
  *  - "ipan"  solar panel current [mA]
  *  - "iload" load (ESP + sensors) current [mA]
  *
- * Channel mapping (fixed by the board wiring):
- *  CH1 = solar panel, CH2 = battery, CH3 = load.
+ * Channel mapping (fixed by the board wiring, verified on hardware during
+ * the Increment 6 validation — the old prototype comment had panel and
+ * load swapped):
+ *  CH1 = load, CH2 = battery, CH3 = solar panel.
  *
  * Each cycle runs one single-shot conversion (the INA3221 sits in
  * power-down the rest of the time). The shunt resistance is configurable
@@ -59,10 +61,10 @@ public:
     static int vbToSoc(float vbatMv);
 
 private:
-    /// INA3221 channel roles (board wiring).
-    static constexpr uint8_t kChPanel = 0;
+    /// INA3221 channel roles (board wiring, hardware-verified).
+    static constexpr uint8_t kChLoad = 0;
     static constexpr uint8_t kChBattery = 1;
-    static constexpr uint8_t kChLoad = 2;
+    static constexpr uint8_t kChPanel = 2;
 
     /// Below this bus voltage [mV] the battery channel reading is treated
     /// as invalid (sensor disconnected or rail down).
