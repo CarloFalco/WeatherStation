@@ -76,6 +76,6 @@ float Ina3221Driver::currentMa(uint8_t channel) {
     // Signed 13-bit value in bits 15..3, LSB = 40 uV. Dividing the int16_t
     // by 8 (not shifting the unsigned raw) preserves the sign.
     int32_t shuntUv = (int32_t)((int16_t)raw / 8) * 40;
-    // I [mA] = V [uV] / R [mOhm] / 1000
-    return (float)shuntUv / (float)_shuntMohm / 1000.0f;
+    // I [mA] = V [uV] / R [mOhm]  (1e-6 / 1e-3 = 1e-3, i.e. mA directly)
+    return (float)shuntUv / (float)_shuntMohm;
 }
