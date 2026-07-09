@@ -45,6 +45,9 @@ bool Anemometer::read(JsonObject &out) {
     double ws = avgHz * (double)_mpsPerHz;
     double wg = (double)maxBin * (double)_mpsPerHz;
 
+    log_d("wind: %lu pulses in %u s -> avg %.1f m/s (%.1f km/h), gust %.1f m/s",
+          (unsigned long)total, _windowS, ws, ws * 3.6, wg);
+
     out["ws"] = round(ws * 10.0) / 10.0;
     out["wg"] = round(wg * 10.0) / 10.0;
     return true;

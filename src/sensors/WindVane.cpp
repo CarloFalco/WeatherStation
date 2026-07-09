@@ -50,7 +50,13 @@ bool WindVane::read(JsonObject &out) {
         wd += 360;
     }
 
-    log_d("AS5600 raw angle %.1f deg -> wd %d deg", rawDeg, wd);
+    // 16-point compass rose, 22.5 deg per sector, N centered on 0.
+    static const char *kCompass[16] = {"N", "NNE", "NE", "ENE", "E", "ESE",
+                                       "SE", "SSE", "S", "SSW", "SW", "WSW",
+                                       "W", "WNW", "NW", "NNW"};
+    log_d("AS5600 raw %.1f deg -> wd %d deg (%s)", rawDeg, wd,
+          kCompass[((wd * 2 + 22) / 45) % 16]);
+
     out["wd"] = wd;
     return true;
 }

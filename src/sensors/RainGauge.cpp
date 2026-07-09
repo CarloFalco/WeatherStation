@@ -30,6 +30,9 @@ bool RainGauge::read(JsonObject &out) {
     // Round to 2 decimals in double math to avoid float serialization
     // artifacts (see Bme280Sensor).
     double mm = (double)g_rtcState.rainPulses * (double)_mmPerPulse;
+
+    log_d("rain: %lu pulses -> %.2f mm", (unsigned long)g_rtcState.rainPulses, mm);
+
     out["rain"] = round(mm * 100.0) / 100.0;
     return true;
 }

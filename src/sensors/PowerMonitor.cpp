@@ -49,6 +49,13 @@ bool PowerMonitor::read(JsonObject &out) {
     float ipanMa = _driver.currentMa(kChPanel);
     float iloadMa = _driver.currentMa(kChLoad);
 
+    // Debug dump of the raw channel readings (serial monitor only, stripped
+    // at compile time when CORE_DEBUG_LEVEL < 4). Panel and load voltages
+    // are read inside the macro so they cost nothing in production builds.
+    log_d("panel  : %6.3f V  %8.1f mA", _driver.busVoltageMv(kChPanel) / 1000.0f, ipanMa);
+    log_d("battery: %6.3f V  %8.1f mA  (soc %d%%)", vbatMv / 1000.0f, ibatMa, vbToSoc(vbatMv));
+    log_d("load   : %6.3f V  %8.1f mA", _driver.busVoltageMv(kChLoad) / 1000.0f, iloadMa);
+
     if (isnan(vbatMv) || isnan(ibatMa) || isnan(ipanMa) || isnan(iloadMa)) {
         return false;
     }

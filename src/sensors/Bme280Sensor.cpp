@@ -41,6 +41,8 @@ bool Bme280Sensor::read(JsonObject &out) {
         return false;
     }
 
+    log_d("T = %.2f degC, RH = %.2f %%, P = %.2f hPa", t, rh, p);
+
     out["t"] = round1(t);
     out["rh"] = round1(rh);
     out["p"] = round1(p);
