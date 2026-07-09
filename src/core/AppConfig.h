@@ -52,6 +52,11 @@ public:
         int16_t vaneOffsetDeg = 0;       ///< Added to the AS5600 raw angle to align 0 to North.
     };
 
+    /** @brief `[power]` section: INA3221 energy monitor. */
+    struct PowerConfig {
+        uint32_t shuntMohm = 10;  ///< Shunt resistance [milliohm], all channels.
+    };
+
     /** @brief `[lora]` section: SX1276 radio parameters (see docs/lora-protocol.md). */
     struct LoraConfig {
         float   freqMhz    = 868.1f;  ///< Carrier frequency [MHz], EU868 band.
@@ -93,6 +98,7 @@ public:
     StationConfig station;  ///< Active `[station]` values.
     RainConfig    rain;     ///< Active `[rain]` values.
     WindConfig    wind;     ///< Active `[wind]` values.
+    PowerConfig   power;    ///< Active `[power]` values.
     LoraConfig    lora;     ///< Active `[lora]` values.
 
 private:

@@ -119,6 +119,21 @@ void AppConfig::applyKey(const String &section, const String &key, const String 
         return;
     }
 
+    if (section == "power") {
+        if (key == "shunt_mohm") {
+            long v = value.toInt();
+            if (v >= 1 && v <= 1000) {
+                power.shuntMohm = (uint32_t)v;
+            } else {
+                log_w("config.ini: shunt_mohm=%ld out of range (1..1000), keeping %lu",
+                      v, (unsigned long)power.shuntMohm);
+            }
+        } else {
+            log_w("config.ini: unknown key [power] %s", key.c_str());
+        }
+        return;
+    }
+
     if (section == "lora") {
         if (key == "freq_mhz") {
             lora.freqMhz = value.toFloat();
@@ -168,6 +183,9 @@ bool AppConfig::save() const {
     file.printf("sample_window_s = %u\n", wind.sampleWindowS);
     file.printf("vane_offset_deg = %d\n", wind.vaneOffsetDeg);
     file.println();
+    file.println("[power]");
+    file.printf("shunt_mohm = %lu\n", (unsigned long)power.shuntMohm);
+    file.println();
     file.println("[lora]");
     file.printf("freq_mhz = %.1f\n", lora.freqMhz);
     file.printf("bw_khz = %.1f\n", lora.bwKhz);
@@ -188,6 +206,7 @@ void AppConfig::printTo(Stream &out) const {
     out.printf("  [wind]    mps_per_hz      = %.3f\n", wind.mpsPerHz);
     out.printf("  [wind]    sample_window_s = %u\n", wind.sampleWindowS);
     out.printf("  [wind]    vane_offset_deg = %d\n", wind.vaneOffsetDeg);
+    out.printf("  [power]   shunt_mohm      = %lu\n", (unsigned long)power.shuntMohm);
     out.printf("  [lora]    freq_mhz        = %.1f\n", lora.freqMhz);
     out.printf("  [lora]    bw_khz          = %.1f\n", lora.bwKhz);
     out.printf("  [lora]    sf              = %u\n", lora.sf);

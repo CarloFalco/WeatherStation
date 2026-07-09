@@ -20,6 +20,7 @@
 #include "core/PowerManager.h"
 #include "sensors/Anemometer.h"
 #include "sensors/Bme280Sensor.h"
+#include "sensors/PowerMonitor.h"
 #include "sensors/RainGauge.h"
 #include "sensors/SensorManager.h"
 #include "sensors/WindVane.h"
@@ -38,6 +39,8 @@ static RainGauge rainGauge;
 static Anemometer anemometer;
 /// AS5600 wind vane (wind direction).
 static WindVane windVane;
+/// INA3221 energy monitor (panel / battery / load).
+static PowerMonitor powerMonitor;
 
 /**
  * @brief Blink the status LED a few times to signal activity.
@@ -92,10 +95,12 @@ void setup() {
     rainGauge.configure(appConfig.rain.mmPerPulse);
     anemometer.configure(appConfig.wind.mpsPerHz, appConfig.wind.sampleWindowS);
     windVane.configure(appConfig.wind.vaneOffsetDeg);
+    powerMonitor.configure(appConfig.power.shuntMohm);
     sensors.add(&bme280);
     sensors.add(&rainGauge);
     sensors.add(&anemometer);
     sensors.add(&windVane);
+    sensors.add(&powerMonitor);
     size_t healthy = sensors.beginAll();
     Serial.printf("\nSensors ready : %u\n", (unsigned)healthy);
 

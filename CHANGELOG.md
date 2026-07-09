@@ -3,6 +3,27 @@
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/);
 il progetto segue il [Semantic Versioning](https://semver.org/).
 
+## [2.6.0] – 2026-07-09 — Increment 6: monitor energia INA3221
+
+### Added
+- `Ina3221Driver` (`src/sensors/`): driver minimale a registri, derivato
+  dalla libreria Beast Devices (MIT) usata nel vecchio prototipo,
+  rielaborato per il progetto: conversioni **single-shot** (il chip resta
+  in power-down tra i cicli, ~0.35 mA risparmiati) e lettura shunt
+  **con segno** (ADC bidirezionale a 13 bit in complemento a due).
+- `PowerMonitor` (`src/sensors/`): ISensor per i tre canali (1 = pannello,
+  2 = batteria, 3 = carico) → campi `vbat` [V], `soc` [%], `ibat`/`ipan`/
+  `iload` [mA]; `ibat` positiva = carica.
+- `vbToSoc()`: stato di carica dalla curva di scarica LiPo del vecchio
+  prototipo (interpolazione lineare, 21 punti, clamp 0–100); il campo
+  `soc` è aggiunto al protocollo LoRa (docs/lora-protocol.md).
+- Sezione `[power]` in `config.ini`: `shunt_mohm` (default 10).
+
+### Changed
+- Rimossi `include/INA3221.{h,cpp}` (vecchia base, rielaborata nei nuovi
+  moduli). Eliminati i workaround sul segno della corrente batteria del
+  vecchio `getAll()`, resi superflui dalla lettura signed.
+
 ## [2.5.0] – 2026-07-09 — Increment 5: anemometro e banderuola
 
 ### Added

@@ -29,7 +29,7 @@ Con questi parametri il payload di telemetria (~150 byte) ha un airtime di
 Un oggetto JSON compatto (senza spazi né newline) per ogni ciclo di misura:
 
 ```json
-{"type":"data","id":"ws-01","fw":"2.1.0","seq":123,"t":21.4,"rh":63.0,"p":1013.2,"rain":0.6,"ws":3.2,"wg":5.1,"wd":270,"vbat":3.98,"ibat":-52,"ipan":120,"iload":35}
+{"type":"data","id":"ws-01","fw":"2.6.0","seq":123,"t":21.4,"rh":63.0,"p":1013.2,"rain":0.6,"ws":3.2,"wg":5.1,"wd":270,"vbat":3.98,"soc":87,"ibat":-52,"ipan":120,"iload":35}
 ```
 
 | Campo | Tipo | Unità | Sorgente | Descrizione |
@@ -46,6 +46,7 @@ Un oggetto JSON compatto (senza spazi né newline) per ogni ciclo di misura:
 | `wg` | float | m/s | Anemometro | Raffica (massimo nella finestra) |
 | `wd` | uint | ° | AS5600 | Direzione vento, 0–359 (0 = Nord, senso orario) |
 | `vbat` | float | V | INA3221 ch2 | Tensione batteria |
+| `soc` | uint | % | INA3221 ch2 | Stato di carica batteria (0–100), da curva di scarica LiPo |
 | `ibat` | int | mA | INA3221 ch2 | Corrente batteria (positiva = carica, negativa = scarica) |
 | `ipan` | int | mA | INA3221 ch1 | Corrente pannello solare |
 | `iload` | int | mA | INA3221 ch3 | Corrente assorbita dal carico |
