@@ -82,6 +82,21 @@ void AppConfig::applyKey(const String &section, const String &key, const String 
         return;
     }
 
+    if (section == "rain") {
+        if (key == "mm_per_pulse") {
+            float v = value.toFloat();
+            if (v > 0.0f && v < 10.0f) {
+                rain.mmPerPulse = v;
+            } else {
+                log_w("config.ini: mm_per_pulse=%s out of range (0..10), keeping %.4f",
+                      value.c_str(), rain.mmPerPulse);
+            }
+        } else {
+            log_w("config.ini: unknown key [rain] %s", key.c_str());
+        }
+        return;
+    }
+
     if (section == "lora") {
         if (key == "freq_mhz") {
             lora.freqMhz = value.toFloat();
@@ -123,6 +138,9 @@ bool AppConfig::save() const {
     file.printf("id = %s\n", station.id.c_str());
     file.printf("wake_interval_s = %lu\n", (unsigned long)station.wakeIntervalS);
     file.println();
+    file.println("[rain]");
+    file.printf("mm_per_pulse = %.4f\n", rain.mmPerPulse);
+    file.println();
     file.println("[lora]");
     file.printf("freq_mhz = %.1f\n", lora.freqMhz);
     file.printf("bw_khz = %.1f\n", lora.bwKhz);
@@ -139,6 +157,7 @@ void AppConfig::printTo(Stream &out) const {
     out.println("Active configuration:");
     out.printf("  [station] id              = %s\n", station.id.c_str());
     out.printf("  [station] wake_interval_s = %lu\n", (unsigned long)station.wakeIntervalS);
+    out.printf("  [rain]    mm_per_pulse    = %.4f\n", rain.mmPerPulse);
     out.printf("  [lora]    freq_mhz        = %.1f\n", lora.freqMhz);
     out.printf("  [lora]    bw_khz          = %.1f\n", lora.bwKhz);
     out.printf("  [lora]    sf              = %u\n", lora.sf);

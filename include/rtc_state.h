@@ -18,10 +18,15 @@
  * @brief Persistent station state, kept in RTC RAM between deep sleeps.
  */
 struct RtcState {
-    uint32_t bootCount;   ///< Wake-up cycles since power-on (1 = cold boot).
-    uint16_t msgSeq;      ///< LoRa telemetry sequence counter ("seq" JSON field).
-    uint32_t rainPulses;  ///< Tipping-bucket pulses accumulated since the last
-                          ///< acknowledged transmission (used from Increment 4).
+    uint32_t bootCount;      ///< Wake-up cycles since power-on (1 = cold boot).
+    uint16_t msgSeq;         ///< LoRa telemetry sequence counter ("seq" JSON field).
+    uint32_t rainPulses;     ///< Tipping-bucket pulses accumulated since the last
+                             ///< acknowledged transmission.
+    uint64_t nextWakeEpochS; ///< Scheduled time of the next measurement cycle
+                             ///< [s, RTC epoch]. The RTC clock keeps running in
+                             ///< deep sleep, so after a rain wake-up the station
+                             ///< can go back to sleep for the remaining time
+                             ///< instead of restarting the full interval.
 };
 
 /// Global RTC-resident state instance (defined in PowerManager.cpp).

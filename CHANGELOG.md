@@ -3,6 +3,25 @@
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/);
 il progetto segue il [Semantic Versioning](https://semver.org/).
 
+## [2.4.0] – 2026-07-09 — Increment 4: pluviometro e wake-on-rain
+
+### Added
+- `RainGauge` (`src/sensors/`): conteggio impulsi del pluviometro a
+  vaschetta su GPIO 19 con debounce software (150 ms), accumulo in RTC RAM
+  (`RtcState::rainPulses`) → campo `rain` [mm] nel JSON di telemetria.
+- Wake-on-rain: una basculata durante il deep sleep sveglia la stazione
+  (EXT0, pull-up nel dominio RTC); il "quick path" in `main.cpp` conta
+  l'impulso e torna subito a dormire per il tempo residuo fino al prossimo
+  ciclo schedulato (`RtcState::nextWakeEpochS`) — niente seriale, sensori
+  né radio: un evento pioggia costa millisecondi di CPU.
+- Sezione `[rain]` in `config.ini`: `mm_per_pulse` (default 0.4743 mm =
+  3 cm³ di vaschetta / 63.25 cm² di bocca di raccolta), ricalibrabile
+  senza ricompilare.
+
+### Fixed
+- Corretto il fattore di conversione del pluviometro rispetto al vecchio
+  prototipo: 0.4743 mm/impulso, non 47.43 (errore di unità cm²→m²).
+
 ## [2.3.0] – 2026-07-08 — Increment 3: interfaccia sensori e BME280
 
 ### Added

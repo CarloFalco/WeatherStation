@@ -5,7 +5,10 @@
 
 #include "PowerManager.h"
 
+#include <driver/rtc_io.h>
 #include <esp_sleep.h>
+
+#include "config.h"
 
 /// RTC-resident state: survives deep sleep, zeroed on power-on reset.
 RTC_DATA_ATTR RtcState g_rtcState = {};
@@ -31,7 +34,13 @@ const char *PowerManager::wakeupCauseString() const {
 
 void PowerManager::deepSleep(uint32_t seconds) {
     esp_sleep_enable_timer_wakeup((uint64_t)seconds * 1000000ULL);
-    // TODO(Increment 4): arm the rain-gauge EXT wake-up on RAIN_GAUGE_PIN here.
+
+    // Rain-gauge wake-up: a bucket tip pulls RAIN_GAUGE_PIN low. The RTC
+    // domain needs its own pull-up because the digital GPIO one is powered
+    // down in deep sleep.
+    rtc_gpio_pullup_en(RAIN_GAUGE_PIN);
+    rtc_gpio_pulldown_dis(RAIN_GAUGE_PIN);
+    esp_sleep_enable_ext0_wakeup(RAIN_GAUGE_PIN, 0 /* wake on low */);
 
     Serial.flush();
     esp_deep_sleep_start();

@@ -38,6 +38,12 @@ public:
         uint32_t wakeIntervalS  = 600;      ///< Seconds of deep sleep between measurement cycles.
     };
 
+    /** @brief `[rain]` section: rain-gauge calibration. */
+    struct RainConfig {
+        float mmPerPulse = 0.4743f;  ///< Rainfall per bucket tip [mm]: bucket
+                                     ///< volume / collector area = 3 cm3 / 63.25 cm2.
+    };
+
     /** @brief `[lora]` section: SX1276 radio parameters (see docs/lora-protocol.md). */
     struct LoraConfig {
         float   freqMhz    = 868.1f;  ///< Carrier frequency [MHz], EU868 band.
@@ -77,6 +83,7 @@ public:
     void printTo(Stream &out) const;
 
     StationConfig station;  ///< Active `[station]` values.
+    RainConfig    rain;     ///< Active `[rain]` values.
     LoraConfig    lora;     ///< Active `[lora]` values.
 
 private:
