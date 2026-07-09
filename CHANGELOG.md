@@ -3,6 +3,27 @@
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/);
 il progetto segue il [Semantic Versioning](https://semver.org/).
 
+## [2.7.0] – 2026-07-09 — Increment 7: trasmissione LoRa
+
+### Added
+- Interfaccia `ITelemetryLink` (`src/comm/`): astrazione del trasporto di
+  telemetria — predispone il requisito bonus (futuro `MqttLink` WiFi
+  diretto selezionabile da config, senza toccare `main.cpp`).
+- `LoRaLink`: SX1276 via RadioLib con i parametri `[lora]` di config.ini
+  (frequenza, BW, SF, CR, sync word, potenza; CRC attivo, preambolo 8).
+  Invio bloccante fire-and-forget; time-on-air stimato nel log di debug;
+  radio messa in sleep (~0.2 µA) prima del deep sleep dell'MCU.
+- `main.cpp`: il JSON di telemetria ora viaggia via radio a ogni ciclo
+  (oltre alla stampa su seriale); esito TX sul monitor.
+- Dipendenza: RadioLib ^7.2.1.
+
+### Fixed (durante la validazione dell'Increment 6)
+- Mappatura canali INA3221 verificata su hardware: CH1 = carico,
+  CH2 = batteria, CH3 = pannello.
+- Correnti INA3221 erano 1000× troppo piccole (µV/mΩ dà già mA).
+- Shunt reale da 100 mΩ (era 10 nel codice del vecchio prototipo),
+  verificato contro una misura di riferimento.
+
 ## [2.6.0] – 2026-07-09 — Increment 6: monitor energia INA3221
 
 ### Added

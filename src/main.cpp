@@ -2,18 +2,19 @@
  * @file main.cpp
  * @brief WeatherStation V2 firmware entry point.
  *
- * Increment 4: two wake paths. A timer wake-up runs the full cycle:
- * banner -> configuration -> sensor readings -> telemetry JSON (printed
- * on serial; sent over LoRa from Increment 7) -> deep sleep. A rain-pulse
- * wake-up (EXT0) takes the quick path instead: count the bucket tip in
- * RTC RAM and go straight back to sleep for the remaining time, keeping
- * the energy cost of rain events minimal. loop() is never reached.
+ * Increment 7: the telemetry goes over the air. A timer wake-up runs the
+ * full cycle: banner -> configuration -> sensor readings -> telemetry
+ * JSON -> LoRa transmission (fire-and-forget for now) -> radio to sleep
+ * -> deep sleep. A rain-pulse wake-up (EXT0) takes the quick path
+ * instead: count the bucket tip in RTC RAM and go straight back to sleep
+ * for the remaining time. loop() is never reached.
  */
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <Wire.h>
 
+#include "comm/LoRaLink.h"
 #include "config.h"
 #include "version.h"
 #include "core/AppConfig.h"
@@ -41,6 +42,8 @@ static Anemometer anemometer;
 static WindVane windVane;
 /// INA3221 energy monitor (panel / battery / load).
 static PowerMonitor powerMonitor;
+/// LoRa telemetry link (parameters read from appConfig at begin()).
+static LoRaLink telemetryLink(appConfig.lora);
 
 /**
  * @brief Blink the status LED a few times to signal activity.
@@ -112,12 +115,18 @@ void setup() {
     msg["seq"] = ++g_rtcState.msgSeq;
     sensors.readAll(msg);
 
-    // From Increment 7 this payload goes to the LoRa link; for now it is
-    // printed so the cycle can be validated end-to-end on serial.
     String payload;
     serializeJson(doc, payload);
     Serial.printf("Telemetry (%u bytes): %s\n",
                   (unsigned)payload.length(), payload.c_str());
+
+    // --- Transmission -------------------------------------------------------
+    if (telemetryLink.begin() && telemetryLink.send(payload)) {
+        Serial.println("LoRa TX: ok");
+    } else {
+        Serial.println("LoRa TX: FAILED (see log above)");
+    }
+    telemetryLink.sleep();  // SX1276 to sleep mode before the MCU powers down
 
     // Until the ACK protocol lands (Increment 8), the rain accumulator is
     // reset after every send attempt.
