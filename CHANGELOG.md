@@ -5,6 +5,15 @@ il progetto segue il [Semantic Versioning](https://semver.org/).
 
 ## [2.8.0] – 2026-07-09 — Increment 8: protocollo ACK e consegna affidabile
 
+### Tooling (step 09, in release con questa versione)
+- Env `native` + `src/logic/` (prima estrazione: `logic::vbatToSoc`) con
+  unit test host (`pio test -e native`, 6 test).
+- `scripts/check.sh`: gate qualità unico (test native + build).
+- `docs/troubleshooting.md` append-only con gli 11 problemi già risolti.
+- Slash command `.claude/commands/{new-sensor,fix-crash}.md`;
+  CLAUDE.MD riallineato al progetto; `docs/pinout.md` corretto
+  (reed su GPIO 19/20 come da config.h, vincolo USB nativo documentato).
+
 ### Added
 - Finestra RX dopo ogni trasmissione (`LoRaLink::receive`, RX-single
   pollato fino a scadenza) in attesa dell'ACK della base:

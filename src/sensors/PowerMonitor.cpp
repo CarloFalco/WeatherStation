@@ -5,35 +5,7 @@
 
 #include "PowerMonitor.h"
 
-/// Linear interpolation: y at x0 on the segment (x1,y1)-(x2,y2).
-static float linInterp(float x1, float x2, float y1, float y2, float x0) {
-    return y1 + (x0 - x1) * (y2 - y1) / (x2 - x1);
-}
-
-int PowerMonitor::vbToSoc(float vbatMv) {
-    // Single-cell LiPo discharge curve: voltage [mV] vs depth of discharge
-    // [%] (SOC = 100 - DOD). Measured points, 5% steps.
-    static const int16_t kVbat[] = {4187, 4111, 4080, 4047, 3996, 3940, 3891,
-                                    3849, 3806, 3759, 3714, 3670, 3632, 3596,
-                                    3554, 3501, 3456, 3411, 3309, 3150, 2925};
-    static const int16_t kDod[] = {0,  5,  10, 15, 20, 25, 30, 35, 40, 45, 50,
-                                   55, 60, 65, 70, 75, 80, 85, 90, 95, 100};
-    constexpr size_t kPoints = sizeof(kVbat) / sizeof(kVbat[0]);
-
-    if (vbatMv >= kVbat[0]) {
-        return 100;
-    }
-    if (vbatMv <= kVbat[kPoints - 1]) {
-        return 0;
-    }
-    for (size_t i = 0; i < kPoints - 1; i++) {
-        if (kVbat[i] >= vbatMv && vbatMv > kVbat[i + 1]) {
-            return 100 - (int)lround(linInterp(kVbat[i], kVbat[i + 1],
-                                               kDod[i], kDod[i + 1], vbatMv));
-        }
-    }
-    return 0;  // unreachable, defensive
-}
+#include "logic/battery_soc.h"
 
 bool PowerMonitor::begin() {
     return _driver.begin();
@@ -53,7 +25,8 @@ bool PowerMonitor::read(JsonObject &out) {
     // at compile time when CORE_DEBUG_LEVEL < 4). Panel and load voltages
     // are read inside the macro so they cost nothing in production builds.
     log_d("panel  : %6.3f V  %8.1f mA", _driver.busVoltageMv(kChPanel) / 1000.0f, ipanMa);
-    log_d("battery: %6.3f V  %8.1f mA  (soc %d%%)", vbatMv / 1000.0f, ibatMa, vbToSoc(vbatMv));
+    log_d("battery: %6.3f V  %8.1f mA  (soc %d%%)", vbatMv / 1000.0f, ibatMa,
+          logic::vbatToSoc(vbatMv));
     log_d("load   : %6.3f V  %8.1f mA", _driver.busVoltageMv(kChLoad) / 1000.0f, iloadMa);
 
     if (isnan(vbatMv) || isnan(ibatMa) || isnan(ipanMa) || isnan(iloadMa)) {
@@ -68,7 +41,7 @@ bool PowerMonitor::read(JsonObject &out) {
     // With this board's wiring the shunt reads discharge as positive,
     // hence the inversion.
     out["vbat"] = round((double)vbatMv / 10.0) / 100.0;  // V, 2 decimals
-    out["soc"] = vbToSoc(vbatMv);
+    out["soc"] = logic::vbatToSoc(vbatMv);
     out["ibat"] = (int)lround(-ibatMa);
     out["ipan"] = (int)lround(ipanMa);
     out["iload"] = (int)lround(iloadMa);

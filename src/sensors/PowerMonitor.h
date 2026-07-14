@@ -5,6 +5,7 @@
  * Contributes the power-related telemetry fields:
  *  - "vbat"  battery voltage [V]
  *  - "soc"   battery state of charge [%], from the LiPo discharge curve
+ *            (pure logic in src/logic/battery_soc.*, native-tested)
  *  - "ibat"  battery current [mA], positive = charging
  *  - "ipan"  solar panel current [mA]
  *  - "iload" load (ESP + sensors) current [mA]
@@ -51,14 +52,6 @@ public:
      * @return true if the conversion completed and readings are valid.
      */
     bool read(JsonObject &out) override;
-
-    /**
-     * @brief Battery voltage to state of charge, by linear interpolation
-     *        of a LiPo discharge curve.
-     * @param vbatMv Battery voltage [mV].
-     * @return State of charge [%], clamped to 0..100.
-     */
-    static int vbToSoc(float vbatMv);
 
 private:
     /// INA3221 channel roles (board wiring, hardware-verified).
