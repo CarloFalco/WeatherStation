@@ -30,6 +30,9 @@ il progetto segue il [Semantic Versioning](https://semver.org/).
   timing, deduplicazione lato base).
 
 ### Changed
+- Reed switch spostati su **GPIO 6 (pluviometro, wake-on-rain) e GPIO 7
+  (anemometro)** — ricablaggio hardware: libera i GPIO 19/20 dell'USB
+  nativo mantenendo la capability RTC per il wake da pioggia.
 - L'accumulatore pioggia viene consumato **solo a consegna confermata**
   e per sottrazione dello snapshot riportato (le basculate arrivate
   durante TX/finestra ACK non vanno perse); senza ACK il dato viaggia

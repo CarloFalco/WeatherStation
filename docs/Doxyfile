@@ -1,0 +1,51 @@
+# Doxyfile — WeatherStation V2 API documentation
+#
+# Minimal config: unset tags use Doxygen defaults. Run via
+#   ./scripts/gen_docs.sh        (exports FW_VERSION from include/version.h)
+# Output: docs/html/ (gitignored; published to GitHub Pages by CI).
+
+# --- Project -----------------------------------------------------------------
+PROJECT_NAME           = "WeatherStation V2"
+PROJECT_BRIEF          = "Battery-powered ESP32-S3 LoRa weather station"
+PROJECT_NUMBER         = $(FW_VERSION)
+OUTPUT_DIRECTORY       = docs
+OUTPUT_LANGUAGE        = English
+
+# --- Input -------------------------------------------------------------------
+INPUT                  = src include README.md CHANGELOG.md \
+                         docs/architecture.md docs/lora-protocol.md
+RECURSIVE              = YES
+USE_MDFILE_AS_MAINPAGE = README.md
+INPUT_ENCODING         = UTF-8
+FILE_PATTERNS          = *.h *.cpp *.md
+
+# --- Extraction --------------------------------------------------------------
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = YES
+EXTRACT_PRIVATE        = YES
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = YES
+
+# --- Warnings ----------------------------------------------------------------
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_NO_PARAMDOC       = NO
+
+# --- Output ------------------------------------------------------------------
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+GENERATE_LATEX         = NO
+GENERATE_TREEVIEW      = YES
+SOURCE_BROWSER         = YES
+STRIP_CODE_COMMENTS    = NO
+
+# --- Diagrams (graphviz not required) -----------------------------------------
+HAVE_DOT               = NO
+CLASS_GRAPH            = YES
+
+# --- Preprocessor ------------------------------------------------------------
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+PREDEFINED             = IRAM_ATTR= RTC_DATA_ATTR= "[[noreturn]]="

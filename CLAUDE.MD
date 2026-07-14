@@ -13,6 +13,7 @@ Sviluppo a increment piccoli validati su hardware dall'utente prima di procedere
 - Test logica (no HW): `pio test -e native`
 - Flash:               `pio run -t upload` · Filesystem: `pio run -t uploadfs`
 - Monitor:             `pio device monitor` (115200, exception decoder già attivo)
+- Documentazione:      `./scripts/gen_docs.sh` → docs/html/ (la CI la pubblica su Pages)
 - Su questa macchina `pio` non è nel PATH: usare `~/.platformio/penv/Scripts/pio.exe`
   (check.sh lo trova da solo).
 
@@ -47,8 +48,7 @@ Sviluppo a increment piccoli validati su hardware dall'utente prima di procedere
 - SX1276 su SPI: SCK=12, MISO=13, MOSI=11, NSS=10, RST=9, DIO0=8.
 - I2C SDA=4/SCL=5: BME280 @0x76, AS5600 @0x36, INA3221 @0x40
   (canali INA: CH1=carico, CH2=batteria, CH3=pannello — verificati su HW).
-- Reed: pluviometro GPIO 19 (wake-on-rain), anemometro GPIO 20.
-  Vincolo: 19/20 = USB nativo ⇒ flash/monitor via connettore UART.
+- Reed: pluviometro GPIO 6 (wake-on-rain, RTC-capable), anemometro GPIO 7.
 - LED stato = LED_BUILTIN.
 
 ## Problemi noti / gotcha

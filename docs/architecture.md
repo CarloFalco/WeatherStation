@@ -44,9 +44,9 @@ src/
     ISensor.h           interfaccia: begin() / read(JsonObject&) / name()
     SensorManager.*     registro dei sensori, raccolta letture nel JSON
     Bme280Sensor.*      temperatura / umidità / pressione (I2C 0x76)
-    RainGauge.*         pluviometro a impulsi (GPIO 19, contatore in RTC RAM,
+    RainGauge.*         pluviometro a impulsi (GPIO 6, contatore in RTC RAM,
                         wake-on-rain via EXT wake-up)
-    Anemometer.*        velocità vento, conteggio impulsi su finestra (GPIO 20)
+    Anemometer.*        velocità vento, conteggio impulsi su finestra (GPIO 7)
     WindVane.*          direzione vento via AS5600 (I2C 0x36)
     PowerMonitor.*      INA3221: pannello / batteria / carico (I2C 0x40)
   comm/
@@ -84,7 +84,7 @@ per tenere il codice leggibile.
 
 - Deep sleep tra i cicli (target < 20 µA di sleep current lato MCU).
 - Wake-up da timer (`esp_sleep_enable_timer_wakeup`, default 10 min).
-- Wake-up da evento pioggia: GPIO 19 è RTC-capable → EXT wake-up; il
+- Wake-up da evento pioggia: GPIO 6 è RTC-capable → EXT wake-up; il
   conteggio delle vaschette è mantenuto in RTC RAM e azzerato dopo l'invio.
 - L'anemometro NON sveglia il nodo: la velocità è misurata contando gli
   impulsi in una finestra di campionamento (es. 3–5 s) durante il wake.

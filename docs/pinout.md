@@ -70,8 +70,8 @@ Configurazione tipica:
 
 ## Pin da NON usare (ESP32-S3)
 - GPIO 0: strapping (boot mode)
-- GPIO 19/20: USB D-/D+ (USB-JTAG) — vedi nota sotto: in questo progetto sono
-  usati come GPIO per i reed switch, quindi l'USB nativo NON è disponibile
+- GPIO 19/20: USB D-/D+ (USB-JTAG) — liberi da funzioni di progetto dal
+  passaggio dei reed switch a GPIO 6/7: l'USB nativo è utilizzabile
 - GPIO 26–32: flash/PSRAM interne — MAI
 - GPIO 33–37: sul modulo **N16R8** (PSRAM octal) sono collegati alla PSRAM
   interna — NON utilizzabili come GPIO esterni (e 33+ non è RTC-capable:
@@ -96,15 +96,9 @@ Configurazione tipica:
 | 4    | I²C SDA         | AS5600 @0x36  | I/O        |                                                |
 | 5    | I²C SCL         | AS5600 @0x36  | I/O        | Sensore direzione del vento                    |
 | 48   | Data WS2812     | LED RGB        | OUT       | pin del LED onboard sul DevKitC-1 (`LED_BUILTIN`) |
-| 19   | Pluviometro     | Reed switch    | IN (pull-up) | RTC-capable: sorgente wake-on-rain (EXT0)   |
-| 20   | Anemometro      | Reed switch    | IN (pull-up) | conteggio impulsi solo durante la veglia     |
+| 6    | Pluviometro     | Reed switch    | IN (pull-up) |                                             |
+| 7    | Anemometro      | Reed switch    | IN (pull-up) | conteggio impulsi solo durante la veglia     |
 
-> **Vincolo USB**: i GPIO 19/20 sono i pin dell'USB nativo dell'S3. Essendo
-> usati per i reed switch (scelta dei requisiti, validata su hardware:
-> servono pin RTC-capable per il wake dal deep sleep), flash e monitor
-> passano dal **connettore UART** (bridge USB-seriale), non dall'USB nativo.
-> Alternativa futura, se servisse l'USB nativo: spostare i reed su due pin
-> RTC-capable liberi (es. GPIO 6/7) e rivalidare.
 
 
 

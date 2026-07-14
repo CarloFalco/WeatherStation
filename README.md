@@ -18,8 +18,8 @@ deep sleep e invio periodico (default: ogni 10 minuti).
 | BME280 | Temperatura / umidità / pressione | I2C `0x76` |
 | AS5600 | Direzione vento (banderuola) | I2C `0x36` |
 | INA3221 | Correnti pannello / batteria / carico | I2C `0x40` |
-| Pluviometro (reed) | Pioggia a impulsi | GPIO 19 (wake-on-rain) |
-| Anemometro (reed) | Velocità vento a impulsi | GPIO 20 |
+| Pluviometro (reed) | Pioggia a impulsi | GPIO 6 (wake-on-rain) |
+| Anemometro (reed) | Velocità vento a impulsi | GPIO 7 |
 
 Il pinout completo è definito in [include/config.h](include/config.h).
 

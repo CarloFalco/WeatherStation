@@ -46,8 +46,9 @@ Implementate le voci a priorità ALTA di `workflow-esp32-claude-code.md`
 
 ## TODO per lo step successivo
 
-- [ ] Domanda aperta per Carlo: confermare che i reed restino su GPIO 19/20
-      (pinout.md diceva 35/36 — refuso o ricablaggio previsto?).
+- [x] Domanda pin reed risolta (2026-07-15): Carlo ha ricablato su
+      **GPIO 6/7** (RTC-capable, USB nativo di nuovo libero) aggiornando
+      config.h e pinout.md; documenti allineati.
 - [ ] Validazione hardware Increment 8 (ACK) ancora in sospeso → poi tag v2.8.0.
 - [ ] Priorità MEDIA della guida quando torneranno utili: `.clang-format`,
       `pio check` in check.sh, `.claude/settings.json`, CI con check.sh.

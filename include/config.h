@@ -42,8 +42,8 @@
 // ---------------------------------------------------------------------------
 // Pulse sensors (reed switches)
 // ---------------------------------------------------------------------------
-#define RAIN_GAUGE_PIN GPIO_NUM_19  ///< Tipping-bucket rain gauge (RTC-capable, used for wake-on-rain)
-#define ANEMOMETER_PIN GPIO_NUM_20  ///< Cup anemometer reed switch
+#define RAIN_GAUGE_PIN GPIO_NUM_6  ///< Tipping-bucket rain gauge (RTC-capable, used for wake-on-rain)
+#define ANEMOMETER_PIN GPIO_NUM_7  ///< Cup anemometer reed switch
 
 // ---------------------------------------------------------------------------
 // Misc
