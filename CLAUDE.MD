@@ -13,7 +13,8 @@ Sviluppo a increment piccoli validati su hardware dall'utente prima di procedere
 - Test logica (no HW): `pio test -e native`
 - Flash:               `pio run -t upload` · Filesystem: `pio run -t uploadfs`
 - Monitor:             `pio device monitor` (115200, exception decoder già attivo)
-- Documentazione:      `./scripts/gen_docs.sh` → docs/html/ (la CI la pubblica su Pages)
+- Documentazione:      si rigenera DA SOLA dopo ogni `pio run -e station`
+  (post-script) → docs/html/; a mano: `./scripts/gen_docs.sh`; la CI pubblica su Pages
 - Su questa macchina `pio` non è nel PATH: usare `~/.platformio/penv/Scripts/pio.exe`
   (check.sh lo trova da solo).
 

@@ -11,6 +11,10 @@ il progetto segue il [Semantic Versioning](https://semver.org/).
   CI ora pubblica il binario di produzione; `check.sh` compila entrambi.
 - `docs/power-budget.md`: duty cycle, budget di sleep, tre scenari di
   autonomia, raccomandazioni hardware e procedura di misura.
+- Post-build script PlatformIO (`scripts/post_build_docs.py`): dopo ogni
+  build dell'env `station` la documentazione Doxygen viene rigenerata
+  automaticamente in `docs/html/` (doxygen assente o in errore = warning,
+  mai build fallita).
 
 ### Changed
 - CPU a 80 MHz durante la veglia (`CPU_FREQ_MHZ` in config.h): ~metà
