@@ -61,12 +61,15 @@ public:
 
     /** @brief `[lora]` section: SX1276 radio parameters (see docs/lora-protocol.md). */
     struct LoraConfig {
-        float   freqMhz    = 868.1f;  ///< Carrier frequency [MHz], EU868 band.
-        float   bwKhz      = 125.0f;  ///< Bandwidth [kHz].
-        uint8_t sf         = 7;       ///< Spreading factor (7..12).
-        uint8_t cr         = 5;       ///< Coding rate denominator (5 -> 4/5).
-        int8_t  txPowerDbm = 14;      ///< TX power [dBm], EU868 ERP limit.
-        uint8_t syncWord   = 0x12;    ///< Private-network sync word.
+        float    freqMhz     = 868.1f;  ///< Carrier frequency [MHz], EU868 band.
+        float    bwKhz       = 125.0f;  ///< Bandwidth [kHz].
+        uint8_t  sf          = 7;       ///< Spreading factor (7..12).
+        uint8_t  cr          = 5;       ///< Coding rate denominator (5 -> 4/5).
+        int8_t   txPowerDbm  = 14;      ///< TX power [dBm], EU868 ERP limit.
+        uint8_t  syncWord    = 0x12;    ///< Private-network sync word.
+        bool     ackEnabled  = true;    ///< Wait for the base ACK after each TX.
+        uint16_t ackTimeoutMs = 600;    ///< RX window length after the TX [ms].
+        uint8_t  txRetries   = 1;       ///< Retransmissions when the ACK is missing.
     };
 
     /**

@@ -46,10 +46,12 @@ public:
     bool read(JsonObject &out) override;
 
     /**
-     * @brief Zero the pulse accumulator.
+     * @brief Consume the pulses that were reported by the last read().
      *
-     * Call after a successful transmission. Until the ACK protocol lands
-     * (Increment 8) this is called after every send attempt.
+     * Call after a confirmed delivery (base ACK received). Subtracts the
+     * snapshot taken by read() instead of zeroing the counter, so bucket
+     * tips that occurred during the transmission/ACK window are carried
+     * over to the next cycle instead of being lost.
      */
     void resetAccumulator();
 
@@ -67,6 +69,7 @@ private:
     static constexpr uint32_t kDebounceMs = 150;  ///< Reed-bounce lockout.
 
     float _mmPerPulse = 0.4743f;  ///< Calibration [mm/tip], overridden by config.
+    uint32_t _reportedPulses = 0; ///< Snapshot published by the last read().
 };
 
 #endif // WEATHERSTATION_RAINGAUGE_H

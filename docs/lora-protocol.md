@@ -1,8 +1,7 @@
-# WeatherStation V2 – Protocollo LoRa (bozza v0.1)
+# WeatherStation V2 – Protocollo LoRa (v1.0)
 
-Data: 2026-07-08 · Stato: **bozza di riferimento** per lo sviluppo del
-ricevitore/gateway; verrà consolidato nell'increment del protocollo (ACK,
-ritrasmissioni) e in quello OTA.
+Data: 2026-07-09 · Stato: **implementato** (fw ≥ 2.8.0) per telemetria e
+ACK; i messaggi OTA verranno aggiunti dagli increment dedicati.
 
 ## Parametri radio
 
@@ -57,17 +56,32 @@ Note per il ricevitore:
   non deve assumere che ci siano tutti (durante lo sviluppo arriveranno
   prima `t/rh/p`, poi via via gli altri).
 - `id` va sempre controllato: più stazioni condividono lo stesso canale.
-- Fino all'increment "protocollo" la stazione trasmette senza attendere
-  ACK (fire-and-forget): per il primo debug basta stampare i pacchetti.
 
-## ACK (base → stazione) — bozza, non ancora implementato
+## ACK (base → stazione)
 
 ```json
 {"type":"ack","id":"ws-01","seq":123}
 ```
 
-Inviato dalla base subito dopo la ricezione; la stazione resta in RX per
-una breve finestra (~500 ms) dopo ogni trasmissione. Se l'ACK non arriva,
-`rain` e gli altri accumulatori NON vengono azzerati e il dato viene
-riaggregato nell'invio successivo. I dettagli (timeout, retry) verranno
-definiti nell'increment dedicato, insieme ai messaggi OTA.
+Sequenza (fw ≥ 2.8.0, parametri in `config.ini` sezione `[lora]`):
+
+1. La stazione trasmette il messaggio `data` con `seq` corrente.
+2. Apre una finestra RX di `ack_timeout_ms` (default **600 ms**).
+3. La base, ricevuto il pacchetto, risponde con l'ACK dopo un breve
+   ritardo (~50 ms, per lasciare alla stazione la commutazione TX→RX):
+   `id` e `seq` devono essere **copiati dal messaggio ricevuto**.
+4. La stazione accetta solo l'ACK con `type/id/seq` combacianti; i
+   pacchetti estranei nella finestra vengono ignorati senza chiuderla.
+5. Se la finestra scade, la stazione ritrasmette lo **stesso** messaggio
+   (stesso `seq`) fino a `tx_retries` volte (default 1 retry).
+6. Solo a consegna confermata l'accumulatore pioggia viene consumato
+   (sottraendo lo snapshot riportato, così le basculate arrivate durante
+   la finestra non vanno perse); senza ACK, `rain` viaggia riaggregato
+   nel ciclo successivo.
+
+Con `ack_enabled = false` la stazione è fire-and-forget: nessuna finestra
+RX e accumulatori azzerati a ogni tentativo (modalità di debug/bring-up).
+
+Nota per la base: un `seq` già visto con lo stesso `id` indica una
+ritrasmissione (il precedente ACK si è perso): va comunque ri-ACKato e
+il dato va deduplicato a valle.

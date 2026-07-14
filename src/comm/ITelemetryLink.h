@@ -35,6 +35,14 @@ public:
     virtual bool send(const String &payload) = 0;
 
     /**
+     * @brief Listen for one incoming packet (blocking, with timeout).
+     * @param payload Filled with the received message on success.
+     * @param timeoutMs Maximum listening time [ms].
+     * @return true if a packet was received within the timeout.
+     */
+    virtual bool receive(String &payload, uint32_t timeoutMs) = 0;
+
+    /**
      * @brief Put the transport hardware into its lowest-power state.
      *
      * Called before entering deep sleep: the MCU power-down does not

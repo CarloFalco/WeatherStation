@@ -27,18 +27,26 @@ bool RainGauge::begin() {
 }
 
 bool RainGauge::read(JsonObject &out) {
+    _reportedPulses = g_rtcState.rainPulses;
+
     // Round to 2 decimals in double math to avoid float serialization
     // artifacts (see Bme280Sensor).
-    double mm = (double)g_rtcState.rainPulses * (double)_mmPerPulse;
+    double mm = (double)_reportedPulses * (double)_mmPerPulse;
 
-    log_d("rain: %lu pulses -> %.2f mm", (unsigned long)g_rtcState.rainPulses, mm);
+    log_d("rain: %lu pulses -> %.2f mm", (unsigned long)_reportedPulses, mm);
 
     out["rain"] = round(mm * 100.0) / 100.0;
     return true;
 }
 
 void RainGauge::resetAccumulator() {
-    g_rtcState.rainPulses = 0;
+    // Subtract the reported snapshot under a brief interrupt lock: the ISR
+    // may increment the counter concurrently and read-modify-write is not
+    // atomic. Tips landed after read() stay in the accumulator.
+    noInterrupts();
+    g_rtcState.rainPulses -= _reportedPulses;
+    interrupts();
+    _reportedPulses = 0;
 }
 
 void RainGauge::countSleepPulse() {

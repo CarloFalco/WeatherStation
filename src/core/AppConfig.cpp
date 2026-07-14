@@ -151,6 +151,14 @@ void AppConfig::applyKey(const String &section, const String &key, const String 
         } else if (key == "sync_word") {
             // Accepts both decimal and 0x-prefixed hex.
             lora.syncWord = (uint8_t)strtol(value.c_str(), nullptr, 0);
+        } else if (key == "ack_enabled") {
+            lora.ackEnabled = (value == "true" || value == "1" || value == "yes");
+        } else if (key == "ack_timeout_ms") {
+            long v = value.toInt();
+            lora.ackTimeoutMs = (uint16_t)constrain(v, 100L, 5000L);
+        } else if (key == "tx_retries") {
+            long v = value.toInt();
+            lora.txRetries = (uint8_t)constrain(v, 0L, 5L);
         } else {
             log_w("config.ini: unknown key [lora] %s", key.c_str());
         }
@@ -193,6 +201,9 @@ bool AppConfig::save() const {
     file.printf("cr = %u\n", lora.cr);
     file.printf("tx_power_dbm = %d\n", lora.txPowerDbm);
     file.printf("sync_word = 0x%02X\n", lora.syncWord);
+    file.printf("ack_enabled = %s\n", lora.ackEnabled ? "true" : "false");
+    file.printf("ack_timeout_ms = %u\n", lora.ackTimeoutMs);
+    file.printf("tx_retries = %u\n", lora.txRetries);
 
     file.close();
     return true;
@@ -213,4 +224,7 @@ void AppConfig::printTo(Stream &out) const {
     out.printf("  [lora]    cr              = 4/%u\n", lora.cr);
     out.printf("  [lora]    tx_power_dbm    = %d\n", lora.txPowerDbm);
     out.printf("  [lora]    sync_word       = 0x%02X\n", lora.syncWord);
+    out.printf("  [lora]    ack_enabled     = %s\n", lora.ackEnabled ? "true" : "false");
+    out.printf("  [lora]    ack_timeout_ms  = %u\n", lora.ackTimeoutMs);
+    out.printf("  [lora]    tx_retries      = %u\n", lora.txRetries);
 }

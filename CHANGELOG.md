@@ -3,6 +3,29 @@
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/);
 il progetto segue il [Semantic Versioning](https://semver.org/).
 
+## [2.8.0] – 2026-07-09 — Increment 8: protocollo ACK e consegna affidabile
+
+### Added
+- Finestra RX dopo ogni trasmissione (`LoRaLink::receive`, RX-single
+  pollato fino a scadenza) in attesa dell'ACK della base:
+  `{"type":"ack","id":...,"seq":...}` con `id`/`seq` combacianti; i
+  pacchetti estranei nella finestra vengono ignorati senza chiuderla.
+- Ritrasmissione dello stesso messaggio (stesso `seq`) in assenza di ACK,
+  fino a `tx_retries` volte.
+- Nuove chiavi `[lora]`: `ack_enabled` (default true), `ack_timeout_ms`
+  (default 600), `tx_retries` (default 1); con `ack_enabled = false` la
+  stazione resta fire-and-forget come in 2.7.0.
+- DebugLora.ino: risponde con l'ACK ai messaggi `data` ricevuti (~50 ms
+  di ritardo per la commutazione TX→RX della stazione).
+- docs/lora-protocol.md consolidato da bozza a v1.0 (sequenza ACK,
+  timing, deduplicazione lato base).
+
+### Changed
+- L'accumulatore pioggia viene consumato **solo a consegna confermata**
+  e per sottrazione dello snapshot riportato (le basculate arrivate
+  durante TX/finestra ACK non vanno perse); senza ACK il dato viaggia
+  riaggregato nel ciclo successivo.
+
 ## [2.7.0] – 2026-07-09 — Increment 7: trasmissione LoRa
 
 ### Added

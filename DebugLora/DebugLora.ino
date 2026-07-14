@@ -120,6 +120,25 @@ void receivePacket() {
   }
  // {"type":"data","id":"ws-01","fw":"2.7.0","seq":10,"t":28.1,"rh":51.7,"p":1005.9,"rain":0,"ws":0,"wg":0,"wd":296,"vbat":4.06,"soc":86,"ibat":503,"ipan":-6,"iload":1}
 
+  // --- ACK verso la stazione -------------------------------------------
+  // La stazione dopo il TX apre una finestra RX di ack_timeout_ms (600 ms
+  // default): rispondiamo subito con {"type":"ack","id":...,"seq":...}.
+  // Il piccolo delay lascia alla stazione il tempo di commutare TX -> RX.
+  const char* type = doc["type"] | "";
+  if (strcmp(type, "data") == 0) {
+    delay(50);
+    StaticJsonDocument<128> ackDoc;
+    ackDoc["type"] = "ack";
+    ackDoc["id"] = doc["id"];
+    ackDoc["seq"] = doc["seq"];
+    String ack;
+    serializeJson(ackDoc, ack);
+    LoRa.beginPacket();
+    LoRa.print(ack);
+    LoRa.endPacket();
+    Serial.println("[TX] ACK inviato: " + ack);
+  }
+
   String id = doc["id"];
   float temp = doc["t"];
   float hum = doc["rh"];

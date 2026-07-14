@@ -51,6 +51,29 @@ bool LoRaLink::send(const String &payload) {
     return true;
 }
 
+bool LoRaLink::receive(String &payload, uint32_t timeoutMs) {
+    if (!_ready) {
+        return false;
+    }
+
+    // RadioLib blocking receive() uses RX-single mode with a ~100-symbol
+    // timeout (~100 ms at SF7): poll it until our own deadline expires.
+    uint32_t deadline = millis() + timeoutMs;
+    while ((int32_t)(deadline - millis()) > 0) {
+        int16_t state = _radio.receive(payload);
+        if (state == RADIOLIB_ERR_NONE) {
+            log_d("LoRa RX: %u bytes, RSSI %.0f dBm, SNR %.1f dB",
+                  (unsigned)payload.length(), _radio.getRSSI(), _radio.getSNR());
+            return true;
+        }
+        if (state != RADIOLIB_ERR_RX_TIMEOUT) {
+            log_w("LoRa RX error %d (corrupted packet?)", state);
+            // CRC mismatch or similar: keep listening until the deadline.
+        }
+    }
+    return false;
+}
+
 void LoRaLink::sleep() {
     // The SX1276 keeps its last mode across MCU deep sleep: without this
     // it would sit in standby (~1.6 mA) forever.

@@ -2,12 +2,13 @@
  * @file main.cpp
  * @brief WeatherStation V2 firmware entry point.
  *
- * Increment 7: the telemetry goes over the air. A timer wake-up runs the
- * full cycle: banner -> configuration -> sensor readings -> telemetry
- * JSON -> LoRa transmission (fire-and-forget for now) -> radio to sleep
- * -> deep sleep. A rain-pulse wake-up (EXT0) takes the quick path
- * instead: count the bucket tip in RTC RAM and go straight back to sleep
- * for the remaining time. loop() is never reached.
+ * Increment 8: reliable delivery. A timer wake-up runs the full cycle:
+ * banner -> configuration -> sensor readings -> telemetry JSON -> LoRa
+ * transmission with ACK window and retries -> radio to sleep -> deep
+ * sleep. The rain accumulator is consumed only on confirmed delivery,
+ * so no rainfall is lost to dropped packets. A rain-pulse wake-up (EXT0)
+ * takes the quick path instead: count the bucket tip in RTC RAM and go
+ * straight back to sleep for the remaining time. loop() is never reached.
  */
 
 #include <Arduino.h>
@@ -44,6 +45,40 @@ static WindVane windVane;
 static PowerMonitor powerMonitor;
 /// LoRa telemetry link (parameters read from appConfig at begin()).
 static LoRaLink telemetryLink(appConfig.lora);
+
+/**
+ * @brief Listen for the base ACK matching the given sequence number.
+ *
+ * Keeps the receive window open for [lora] ack_timeout_ms, discarding
+ * unrelated packets (other stations, foreign traffic) until the matching
+ * `{"type":"ack","id":<ours>,"seq":<seq>}` arrives or the window closes.
+ *
+ * @param seq Sequence number of the telemetry message just sent.
+ * @return true if the matching ACK was received.
+ */
+static bool waitForAck(uint16_t seq) {
+    uint32_t deadline = millis() + appConfig.lora.ackTimeoutMs;
+
+    while ((int32_t)(deadline - millis()) > 0) {
+        String rx;
+        if (!telemetryLink.receive(rx, deadline - millis())) {
+            break;  // window expired with no packet
+        }
+
+        JsonDocument doc;
+        if (deserializeJson(doc, rx) != DeserializationError::Ok) {
+            log_w("RX window: non-JSON packet ignored");
+            continue;
+        }
+        if (strcmp(doc["type"] | "", "ack") == 0 &&
+            appConfig.station.id == (doc["id"] | "") &&
+            (uint16_t)(doc["seq"] | 0) == seq) {
+            return true;
+        }
+        log_d("RX window: unrelated packet ignored (%s)", rx.c_str());
+    }
+    return false;
+}
 
 /**
  * @brief Blink the status LED a few times to signal activity.
@@ -120,17 +155,37 @@ void setup() {
     Serial.printf("Telemetry (%u bytes): %s\n",
                   (unsigned)payload.length(), payload.c_str());
 
-    // --- Transmission -------------------------------------------------------
-    if (telemetryLink.begin() && telemetryLink.send(payload)) {
-        Serial.println("LoRa TX: ok");
-    } else {
-        Serial.println("LoRa TX: FAILED (see log above)");
+    // --- Transmission with ACK and retries ----------------------------------
+    uint16_t seq = doc["seq"];
+    bool delivered = false;
+    if (telemetryLink.begin()) {
+        for (uint8_t attempt = 0; attempt <= appConfig.lora.txRetries; attempt++) {
+            if (attempt > 0) {
+                Serial.printf("LoRa TX: retry %u/%u\n", attempt, appConfig.lora.txRetries);
+            }
+            if (!telemetryLink.send(payload)) {
+                continue;
+            }
+            if (!appConfig.lora.ackEnabled) {
+                delivered = true;  // fire-and-forget mode: assume delivery
+                break;
+            }
+            if (waitForAck(seq)) {
+                delivered = true;
+                break;
+            }
+        }
     }
+    Serial.printf("LoRa TX: %s\n", delivered
+                      ? (appConfig.lora.ackEnabled ? "delivered (ACK)" : "sent (no-ACK mode)")
+                      : "NOT delivered");
     telemetryLink.sleep();  // SX1276 to sleep mode before the MCU powers down
 
-    // Until the ACK protocol lands (Increment 8), the rain accumulator is
-    // reset after every send attempt.
-    rainGauge.resetAccumulator();
+    // Consume the reported rainfall only when delivery is confirmed:
+    // otherwise it stays in the accumulator and rides the next message.
+    if (delivered) {
+        rainGauge.resetAccumulator();
+    }
 
     blink(3);
 

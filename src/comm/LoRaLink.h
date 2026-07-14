@@ -6,9 +6,10 @@
  * parameters come from config.ini ([lora] section) and must match the
  * receiver configuration: see docs/lora-protocol.md.
  *
- * Current behaviour is fire-and-forget: one blocking transmission per
- * cycle, no ACK. The RX window / ACK / retry logic arrives with the
- * protocol increment.
+ * Transmission is blocking; after each telemetry TX main.cpp opens a
+ * short receive window waiting for the base ACK (see the "protocollo"
+ * section of docs/lora-protocol.md). Both behaviours are driven from
+ * config.ini ([lora] ack_enabled / ack_timeout_ms / tx_retries).
  */
 
 #ifndef WEATHERSTATION_LORALINK_H
@@ -45,6 +46,14 @@ public:
      * @return true on successful transmission.
      */
     bool send(const String &payload) override;
+
+    /**
+     * @brief Listen for one packet (RX single mode, polled until timeout).
+     * @param payload Filled with the received message on success.
+     * @param timeoutMs Maximum listening time [ms].
+     * @return true if a packet passed CRC and was read within the timeout.
+     */
+    bool receive(String &payload, uint32_t timeoutMs) override;
 
     /**
      * @brief Put the SX1276 into sleep mode (~0.2 uA).
