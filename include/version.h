@@ -14,10 +14,10 @@
 #define WEATHERSTATION_VERSION_H
 
 #define FW_VERSION_MAJOR 2
-#define FW_VERSION_MINOR 8
+#define FW_VERSION_MINOR 9
 #define FW_VERSION_PATCH 0
 
 /** @brief Firmware version as a human-readable string, e.g. "2.0.0". */
-#define FW_VERSION "2.8.0"
+#define FW_VERSION "2.9.0"
 
 #endif // WEATHERSTATION_VERSION_H

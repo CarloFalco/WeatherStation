@@ -96,6 +96,10 @@ static void blink(uint8_t times) {
 }
 
 void setup() {
+    // First thing: drop the CPU from the default 240 MHz. It roughly halves
+    // the active current and everything in the cycle runs fine at 80 MHz.
+    setCpuFrequencyMhz(CPU_FREQ_MHZ);
+
     power.begin();
 
     // --- Quick path: rain pulse during deep sleep ---------------------------
@@ -113,7 +117,12 @@ void setup() {
     }
 
     Serial.begin(115200);
-    delay(2000);  // give USB-CDC time to enumerate so the log is visible
+#if CORE_DEBUG_LEVEL >= 3
+    // Development builds only: wait for USB-CDC enumeration so the whole
+    // log is visible. Production builds skip it (2 s of awake time saved
+    // per cycle, nobody is listening in the field).
+    delay(2000);
+#endif
 
     Serial.println();
     Serial.println("============================================");

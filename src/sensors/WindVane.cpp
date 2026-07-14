@@ -33,6 +33,26 @@ bool WindVane::begin() {
         log_w("AS5600: no magnet detected (status=0x%02X)", status);
         return false;
     }
+
+    // Switch to LPM3: the chip stays powered through deep sleep and would
+    // otherwise draw ~6.5 mA around the clock. The CONF register is
+    // volatile, so this runs on every wake-up (cheap: skipped when the
+    // bits are already set, e.g. woken from deep sleep, not power-on).
+    uint8_t conf[2];
+    if (readRegisters(kRegConf, conf, 2)) {
+        uint8_t lowByte = (conf[1] & ~kConfPowerModeMask) | kConfPowerModeLpm3;
+        if (lowByte != conf[1]) {
+            Wire.beginTransmission(AS5600_ADDRESS);
+            Wire.write(kRegConf);
+            Wire.write(conf[0]);
+            Wire.write(lowByte);
+            if (Wire.endTransmission() == 0) {
+                log_i("AS5600 switched to LPM3 (~1.5 mA instead of ~6.5 mA)");
+            } else {
+                log_w("AS5600: failed to set LPM3 power mode");
+            }
+        }
+    }
     return true;
 }
 
@@ -51,9 +71,10 @@ bool WindVane::read(JsonObject &out) {
     }
 
     // 16-point compass rose, 22.5 deg per sector, N centered on 0.
-    static const char *kCompass[16] = {"N", "NNE", "NE", "ENE", "E", "ESE",
-                                       "SE", "SSE", "S", "SSW", "SW", "WSW",
-                                       "W", "WNW", "NW", "NNW"};
+    // Only referenced by log_d: unused in production builds (level < 4).
+    [[maybe_unused]] static const char *kCompass[16] = {
+        "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+        "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"};
     log_d("AS5600 raw %.1f deg -> wd %d deg (%s)", rawDeg, wd,
           kCompass[((wd * 2 + 22) / 45) % 16]);
 

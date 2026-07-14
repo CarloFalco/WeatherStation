@@ -23,11 +23,11 @@ jobs:
       - name: Install PlatformIO
         run: pip install platformio
 
-      - name: Build firmware
-        run: pio run -e station
+      - name: Build firmware (production)
+        run: pio run -e station-release
 
       - name: Rename firmware binary
-        run: cp .pio/build/station/firmware.bin WeatherStation_${{ github.ref_name }}.bin
+        run: cp .pio/build/station-release/firmware.bin WeatherStation_${{ github.ref_name }}.bin
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

@@ -36,7 +36,15 @@ public:
     void configure(int16_t offsetDeg) { _offsetDeg = offsetDeg; }
 
     /**
-     * @brief Probe the AS5600 and verify the magnet is detected.
+     * @brief Probe the AS5600, verify the magnet, enter low-power mode.
+     *
+     * The AS5600 has no enable pin and stays powered through deep sleep:
+     * in its default mode it draws ~6.5 mA continuously, which alone
+     * would drain the battery in weeks. begin() switches it to LPM3
+     * (~1.5 mA, 10 ms internal sampling — more than enough for wind).
+     * See docs/power-budget.md for why a hardware load switch on the
+     * sensor rail is still the proper long-term fix.
+     *
      * @return true if the chip answers and the MD status bit is set.
      */
     bool begin() override;
@@ -58,9 +66,12 @@ private:
      */
     bool readRegisters(uint8_t reg, uint8_t *buf, size_t len);
 
+    static constexpr uint8_t kRegConf = 0x07;      ///< CONF register, 2 bytes.
     static constexpr uint8_t kRegStatus = 0x0B;    ///< Magnet status register.
     static constexpr uint8_t kRegRawAngle = 0x0C;  ///< Raw angle, 12 bit, 2 bytes.
     static constexpr uint8_t kStatusMagnetDetected = 0x20;  ///< MD bit mask.
+    static constexpr uint8_t kConfPowerModeMask = 0x03;     ///< PM bits (CONF low byte).
+    static constexpr uint8_t kConfPowerModeLpm3 = 0x03;     ///< LPM3: ~1.5 mA, 10 ms polling.
 
     int16_t _offsetDeg = 0;  ///< Mounting offset [deg], from config.
 };

@@ -35,9 +35,10 @@ bool LoRaLink::send(const String &payload) {
         return false;
     }
 
-    uint32_t toaMs =
+    // Only referenced by log_d: unused in production builds (level < 4).
+    [[maybe_unused]] uint32_t toaMs =
         _radio.getTimeOnAir(payload.length()) / 1000;  // us -> ms
-    uint32_t start = millis();
+    [[maybe_unused]] uint32_t start = millis();
     int16_t state = _radio.transmit(payload.c_str());
 
     if (state != RADIOLIB_ERR_NONE) {

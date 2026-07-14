@@ -50,4 +50,9 @@
 // ---------------------------------------------------------------------------
 #define STATUS_LED_PIN LED_BUILTIN  ///< On-board status LED (validated on hardware)
 
+/// CPU frequency during the wake window [MHz]. 80 MHz roughly halves the
+/// active current vs the default 240 MHz; nothing in the cycle (I2C, SPI,
+/// UART, LoRa) needs more.
+#define CPU_FREQ_MHZ 80
+
 #endif // WEATHERSTATION_CONFIG_H

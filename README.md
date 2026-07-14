@@ -31,8 +31,11 @@ Il pinout completo è definito in [include/config.h](include/config.h).
 ## Compilazione e flash
 
 ```bash
-# Compila
+# Compila (build di sviluppo, log di debug attivi)
 pio run
+
+# Build di produzione (log di debug eliminati, niente attesa USB al boot)
+pio run -e station-release
 
 # Flash via USB (la porta viene rilevata automaticamente)
 pio run -t upload

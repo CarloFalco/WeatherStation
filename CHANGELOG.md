@@ -3,6 +3,24 @@
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/);
 il progetto segue il [Semantic Versioning](https://semver.org/).
 
+## [2.9.0] – 2026-07-15 — Increment 9: ottimizzazione consumi e stima autonomia
+
+### Added
+- Env `station-release` (produzione): `CORE_DEBUG_LEVEL=2` (log_d/log_i
+  eliminati a compile-time) e niente attesa USB di 2 s al boot. La release
+  CI ora pubblica il binario di produzione; `check.sh` compila entrambi.
+- `docs/power-budget.md`: duty cycle, budget di sleep, tre scenari di
+  autonomia, raccomandazioni hardware e procedura di misura.
+
+### Changed
+- CPU a 80 MHz durante la veglia (`CPU_FREQ_MHZ` in config.h): ~metà
+  della corrente attiva rispetto ai 240 MHz di default.
+- AS5600 forzato in **LPM3** al `begin()` (~1.5 mA invece di ~6.5 mA
+  continui): il sensore resta alimentato anche nel deep sleep ed era la
+  voce dominante del budget — da ~18 a ~66 giorni di autonomia teorica a
+  batteria; > 12 mesi restano subordinati al pannello o al load switch
+  sul rail sensori (vedi power-budget.md).
+
 ## [2.8.0] – 2026-07-09 — Increment 8: protocollo ACK e consegna affidabile
 
 ### Tooling (step 09, in release con questa versione)

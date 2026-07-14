@@ -26,14 +26,17 @@ FAST=0
 [ "${1:-}" = "--fast" ] && FAST=1
 
 if [ "$FAST" -eq 0 ]; then
-    echo "=== 1/2 Unit test (native, host) ==="
+    echo "=== 1/3 Unit test (native, host) ==="
     "$PIO" test -e native
 else
-    echo "=== 1/2 Unit test SKIPPED (--fast) ==="
+    echo "=== 1/3 Unit test SKIPPED (--fast) ==="
 fi
 
-echo "=== 2/2 Build firmware (station) ==="
+echo "=== 2/3 Build firmware (station, dev) ==="
 "$PIO" run -e station
+
+echo "=== 3/3 Build firmware (station-release, production) ==="
+"$PIO" run -e station-release
 
 echo ""
 echo "check.sh: ALL GREEN"
