@@ -56,6 +56,21 @@ public:
     bool receive(String &payload, uint32_t timeoutMs) override;
 
     /**
+     * @brief Listen for one raw binary packet (OTA chunks).
+     *
+     * LoRa-specific (not part of ITelemetryLink): the OTA transfer uses
+     * raw frames because base64-in-JSON would waste ~33% of the scarce
+     * 255-byte LoRa payload.
+     *
+     * @param buf Destination buffer; MUST hold a full LoRa packet (>= 256 B).
+     * @param bufSize Size of @p buf.
+     * @param len Set to the received packet length on success.
+     * @param timeoutMs Maximum listening time [ms].
+     * @return true if a packet passed CRC and fit the buffer.
+     */
+    bool receiveRaw(uint8_t *buf, size_t bufSize, size_t &len, uint32_t timeoutMs);
+
+    /**
      * @brief Put the SX1276 into sleep mode (~0.2 uA).
      */
     void sleep() override;

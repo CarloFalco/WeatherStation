@@ -69,6 +69,91 @@
 unsigned long packetCounter = 0;
 unsigned long lastSendTime = 0;
 
+// --- OTA test sender ----------------------------------------------------
+// Premere 'u' sul monitor seriale per armare un'offerta OTA: al prossimo
+// pacchetto data l'ACK conterra' i metadati e partira' la sessione di
+// trasferimento (protocollo in docs/lora-protocol.md, modello pull).
+#define OTA_TEST_SIZE   4096
+#define OTA_CHUNK_DATA  180
+#define OTA_CHUNK_MAGIC 0xA5
+
+bool otaArmed = false;
+uint8_t otaData[OTA_TEST_SIZE];
+uint32_t otaCrc = 0;
+uint16_t otaChunks = 0;
+
+// CRC-32 IEEE, identico a src/logic/crc32.cpp della stazione.
+uint32_t crc32Buf(const uint8_t* data, size_t len) {
+  uint32_t crc = 0xFFFFFFFFu;
+  for (size_t i = 0; i < len; i++) {
+    crc ^= data[i];
+    for (int b = 0; b < 8; b++) {
+      crc = (crc >> 1) ^ (0xEDB88320u & (0u - (crc & 1u)));
+    }
+  }
+  return crc ^ 0xFFFFFFFFu;
+}
+
+void armOta() {
+  // Pattern deterministico: verificabile anche lato stazione.
+  for (size_t i = 0; i < OTA_TEST_SIZE; i++) {
+    otaData[i] = (uint8_t)((i * 31 + 7) & 0xFF);
+  }
+  otaCrc = crc32Buf(otaData, OTA_TEST_SIZE);
+  otaChunks = (OTA_TEST_SIZE + OTA_CHUNK_DATA - 1) / OTA_CHUNK_DATA;
+  otaArmed = true;
+  Serial.printf("[OTA] armato: %u byte, %u chunk, CRC 0x%08lX\n",
+                OTA_TEST_SIZE, otaChunks, (unsigned long)otaCrc);
+  Serial.println("[OTA] l'offerta parte col prossimo ACK alla stazione");
+}
+
+// Sessione lato sender: serve le richieste ota_req finche' la stazione
+// non manda ota_done (o timeout).
+void otaSenderSession() {
+  Serial.println("[OTA] sessione avviata, attendo richieste dalla stazione...");
+  unsigned long deadline = millis() + 60000UL;
+
+  while ((long)(deadline - millis()) > 0) {
+    int packetSize = LoRa.parsePacket();
+    if (!packetSize) continue;
+
+    String rx = "";
+    while (LoRa.available()) rx += (char)LoRa.read();
+
+    StaticJsonDocument<192> doc;
+    if (deserializeJson(doc, rx)) continue;
+    const char* type = doc["type"] | "";
+
+    if (strcmp(type, "ota_req") == 0) {
+      uint16_t idx = doc["idx"] | 0;
+      size_t off = (size_t)idx * OTA_CHUNK_DATA;
+      if (off >= OTA_TEST_SIZE) continue;
+      size_t n = OTA_TEST_SIZE - off;
+      if (n > OTA_CHUNK_DATA) n = OTA_CHUNK_DATA;
+
+      delay(30);  // commutazione TX->RX della stazione
+      LoRa.beginPacket();
+      LoRa.write(OTA_CHUNK_MAGIC);
+      LoRa.write(idx & 0xFF);
+      LoRa.write((idx >> 8) & 0xFF);
+      LoRa.write(otaData + off, n);
+      LoRa.endPacket();
+      deadline = millis() + 60000UL;  // sessione viva: rinnova il timeout
+      if (idx % 8 == 0) Serial.printf("[OTA] chunk %u/%u inviato\n", idx, otaChunks);
+
+    } else if (strcmp(type, "ota_done") == 0) {
+      bool okFlag = doc["ok"] | false;
+      Serial.printf("[OTA] esito stazione: %s (CRC 0x%08lX, atteso 0x%08lX)\n",
+                    okFlag ? "SUCCESS" : "FAILED",
+                    (unsigned long)(doc["crc"] | 0), (unsigned long)otaCrc);
+      otaArmed = false;
+      return;
+    }
+  }
+  Serial.println("[OTA] timeout sessione (nessuna richiesta/done)");
+  otaArmed = false;
+}
+
 // Colora il LED in base a un valore 0-100 (sfumatura verde -> rosso)
 void setRgbFromSignal(int value, int pin) {
   value = constrain(value, 0, 100);
@@ -127,16 +212,28 @@ void receivePacket() {
   const char* type = doc["type"] | "";
   if (strcmp(type, "data") == 0) {
     delay(50);
-    StaticJsonDocument<128> ackDoc;
+    StaticJsonDocument<256> ackDoc;
     ackDoc["type"] = "ack";
     ackDoc["id"] = doc["id"];
     ackDoc["seq"] = doc["seq"];
+    if (otaArmed) {
+      // Offerta OTA piggyback nell'ACK (docs/lora-protocol.md).
+      JsonObject ota = ackDoc.createNestedObject("ota");
+      ota["size"] = OTA_TEST_SIZE;
+      ota["crc"] = otaCrc;
+      ota["chunks"] = otaChunks;
+      ota["ver"] = "test-4k";
+    }
     String ack;
     serializeJson(ackDoc, ack);
     LoRa.beginPacket();
     LoRa.print(ack);
     LoRa.endPacket();
     Serial.println("[TX] ACK inviato: " + ack);
+
+    if (otaArmed) {
+      otaSenderSession();
+    }
   }
 
   String id = doc["id"];
@@ -182,6 +279,12 @@ void setup() {
 }
 
 void loop() {
+  // 'u' da seriale = arma l'offerta OTA di test
+  if (Serial.available()) {
+    char c = Serial.read();
+    if (c == 'u' || c == 'U') armOta();
+  }
+
   // Invio periodico non bloccante
   if (millis() - lastSendTime >= TX_INTERVAL_MS) {
     lastSendTime = millis();

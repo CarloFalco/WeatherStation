@@ -1,7 +1,9 @@
-# WeatherStation V2 – Protocollo LoRa (v1.0)
+# WeatherStation V2 – Protocollo LoRa (v1.1)
 
-Data: 2026-07-09 · Stato: **implementato** (fw ≥ 2.8.0) per telemetria e
-ACK; i messaggi OTA verranno aggiunti dagli increment dedicati.
+Data: 2026-07-15 · Stato: telemetria e ACK **implementati** (fw ≥ 2.8.0);
+trasferimento OTA a chunk **implementato** (fw ≥ 3.0.0-alpha.1, stage 1:
+file di test su LittleFS); scrittura partizione/rollback/firma negli
+increment successivi.
 
 ## Parametri radio
 
@@ -85,3 +87,65 @@ RX e accumulatori azzerati a ogni tentativo (modalità di debug/bring-up).
 Nota per la base: un `seq` già visto con lo stesso `id` indica una
 ritrasmissione (il precedente ACK si è perso): va comunque ri-ACKato e
 il dato va deduplicato a valle.
+
+## Trasferimento OTA (base → stazione) — stage 1 in fw 3.0.0-alpha.1
+
+La stazione dorme: ogni scambio parte da lei. La base può **piggybackare
+un'offerta OTA dentro l'ACK** di telemetria; la stazione resta sveglia ed
+entra in sessione di trasferimento con modello **pull** (richiede lei ogni
+chunk ⇒ ACK, ordinamento e ritrasmissioni sono impliciti).
+
+### 1. Offerta (campo `ota` nell'ACK)
+
+```json
+{"type":"ack","id":"ws-01","seq":123,
+ "ota":{"size":4096,"crc":305419896,"chunks":23,"ver":"3.1.0"}}
+```
+
+| Campo | Descrizione |
+|-------|-------------|
+| `size` | Dimensione totale dell'immagine [byte] |
+| `crc` | CRC-32 (IEEE 802.3, poly 0xEDB88320) dell'intera immagine, come uint |
+| `chunks` | Numero di chunk = ceil(size / 180) |
+| `ver` | Versione offerta (informativa; la stazione la logga) |
+
+### 2. Richiesta chunk (stazione → base, JSON)
+
+```json
+{"type":"ota_req","id":"ws-01","idx":0}
+```
+
+### 3. Chunk (base → stazione, **binario**, non JSON)
+
+| Offset | Campo | Dimensione | Note |
+|--------|-------|-----------|------|
+| 0 | magic | 1 B | `0xA5` |
+| 1 | idx | 2 B | little-endian, deve combaciare con la richiesta |
+| 3 | payload | ≤ 180 B | ultimo chunk = size − idx·180 byte |
+
+Binario puro: base64 dentro JSON sprecherebbe ~33% dei 255 byte LoRa.
+Integrità del singolo pacchetto già garantita dal CRC LoRa hardware.
+
+### 4. Esito (stazione → base)
+
+```json
+{"type":"ota_done","id":"ws-01","ok":true,"crc":305419896}
+```
+
+### Timing e ritrasmissioni (lato stazione, fw 3.0.0-alpha.1)
+
+- Attesa chunk dopo la richiesta: **1.5 s**; ritentativi per chunk: **8**
+  (ritrasmettendo la stessa `ota_req`); timeout sessione: **120 s**.
+- La base deve attendere ~30 ms prima di rispondere a una `ota_req`
+  (commutazione TX→RX della stazione) e considerare la sessione morta
+  dopo ~60 s senza richieste.
+- Throughput atteso a SF7: ~0.4–0.5 s/chunk ⇒ ~20–25 kB/min.
+
+### Roadmap stage successivi
+
+| Stage | Contenuto | Stato |
+|-------|-----------|-------|
+| 1 | Trasporto a chunk + CRC-32, immagine di test su LittleFS | fw 3.0.0-alpha.1 |
+| 2 | Scrittura streaming nella partizione OTA inattiva (`esp_ota_begin/write/end`), riavvio, rollback automatico se il nuovo firmware non si auto-valida | pianificato |
+| 3 | Sicurezza: digest SHA-256 nell'offerta + firma del binario verificata prima del boot definitivo | pianificato |
+| — | Dashboard/notifiche MQTT (Home Assistant), download da GitHub Release: responsabilità del **gateway** (repo separato) — il gateway usa questo protocollo verso la stazione | fuori scope stazione |

@@ -3,6 +3,31 @@
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/);
 il progetto segue il [Semantic Versioning](https://semver.org/).
 
+## [3.0.0-alpha.1] – 2026-07-15 — OTA stage 1: trasferimento a chunk via LoRa
+
+La serie 3.0 introduce gli aggiornamenti OTA via LoRa; le pre-release
+`-alpha.N` sono gli increment di sviluppo (3.0.0 finale = OTA completo).
+
+### Added
+- Protocollo di trasferimento OTA (docs/lora-protocol.md v1.1): offerta
+  piggyback nell'ACK (`ota{size,crc,chunks,ver}`), modello **pull** —
+  la stazione richiede ogni chunk (`ota_req`) ⇒ ACK/ritrasmissioni
+  implicite — chunk **binari** da 180 byte (`0xA5 + idx LE + payload`),
+  esito finale `ota_done`.
+- `OtaReceiver` (`src/ota/`): sessione di ricezione con retry per chunk
+  (8), timeout (1.5 s/chunk, 120 s/sessione), streaming su LittleFS e
+  verifica CRC-32 dell'immagine — stage 1: file di test.
+- `logic::crc32` (IEEE 802.3, incrementale, senza tabella) con 5 unit
+  test nativi (vettori noti, streaming a chunk = one-shot, corruzione).
+- `LoRaLink::receiveRaw()`: ricezione binaria (base64-in-JSON avrebbe
+  sprecato ~33% del payload LoRa).
+- DebugLora.ino: sender OTA di test — 'u' da seriale arma un'offerta di
+  4 KB (pattern noto), serve le richieste e stampa l'esito.
+
+### Roadmap
+- Stage 2: scrittura nella partizione OTA inattiva + riavvio + rollback.
+- Stage 3: SHA-256 + firma del firmware. Dashboard MQTT: lato gateway.
+
 ## [2.9.0] – 2026-07-15 — Increment 9: ottimizzazione consumi e stima autonomia
 
 ### Added

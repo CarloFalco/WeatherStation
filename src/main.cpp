@@ -17,6 +17,7 @@
 
 #include "comm/LoRaLink.h"
 #include "config.h"
+#include "ota/OtaReceiver.h"
 #include "version.h"
 #include "core/AppConfig.h"
 #include "core/PowerManager.h"
@@ -54,9 +55,11 @@ static LoRaLink telemetryLink(appConfig.lora);
  * `{"type":"ack","id":<ours>,"seq":<seq>}` arrives or the window closes.
  *
  * @param seq Sequence number of the telemetry message just sent.
+ * @param ackOut Filled with the full ACK document on success — the base
+ *               may piggyback an OTA offer in it (docs/lora-protocol.md).
  * @return true if the matching ACK was received.
  */
-static bool waitForAck(uint16_t seq) {
+static bool waitForAck(uint16_t seq, JsonDocument &ackOut) {
     uint32_t deadline = millis() + appConfig.lora.ackTimeoutMs;
 
     while ((int32_t)(deadline - millis()) > 0) {
@@ -65,14 +68,13 @@ static bool waitForAck(uint16_t seq) {
             break;  // window expired with no packet
         }
 
-        JsonDocument doc;
-        if (deserializeJson(doc, rx) != DeserializationError::Ok) {
+        if (deserializeJson(ackOut, rx) != DeserializationError::Ok) {
             log_w("RX window: non-JSON packet ignored");
             continue;
         }
-        if (strcmp(doc["type"] | "", "ack") == 0 &&
-            appConfig.station.id == (doc["id"] | "") &&
-            (uint16_t)(doc["seq"] | 0) == seq) {
+        if (strcmp(ackOut["type"] | "", "ack") == 0 &&
+            appConfig.station.id == (ackOut["id"] | "") &&
+            (uint16_t)(ackOut["seq"] | 0) == seq) {
             return true;
         }
         log_d("RX window: unrelated packet ignored (%s)", rx.c_str());
@@ -167,6 +169,7 @@ void setup() {
     // --- Transmission with ACK and retries ----------------------------------
     uint16_t seq = doc["seq"];
     bool delivered = false;
+    JsonDocument ackDoc;
     if (telemetryLink.begin()) {
         for (uint8_t attempt = 0; attempt <= appConfig.lora.txRetries; attempt++) {
             if (attempt > 0) {
@@ -179,7 +182,7 @@ void setup() {
                 delivered = true;  // fire-and-forget mode: assume delivery
                 break;
             }
-            if (waitForAck(seq)) {
+            if (waitForAck(seq, ackDoc)) {
                 delivered = true;
                 break;
             }
@@ -188,6 +191,20 @@ void setup() {
     Serial.printf("LoRa TX: %s\n", delivered
                       ? (appConfig.lora.ackEnabled ? "delivered (ACK)" : "sent (no-ACK mode)")
                       : "NOT delivered");
+
+    // --- OTA offer piggybacked in the ACK ------------------------------------
+    // Stage 1 (fw 3.0.0-alpha): receive a test image to LittleFS and verify
+    // its CRC-32. Later stages write to the OTA partition and reboot.
+    if (delivered && ackDoc["ota"].is<JsonObject>()) {
+        OtaReceiver::Offer offer;
+        offer.size = ackDoc["ota"]["size"] | 0;
+        offer.crc = ackDoc["ota"]["crc"] | 0;
+        offer.chunks = ackDoc["ota"]["chunks"] | 0;
+        offer.version = (const char *)(ackDoc["ota"]["ver"] | "");
+        OtaReceiver ota(telemetryLink, appConfig.station.id);
+        ota.runSession(offer);
+    }
+
     telemetryLink.sleep();  // SX1276 to sleep mode before the MCU powers down
 
     // Consume the reported rainfall only when delivery is confirmed:
