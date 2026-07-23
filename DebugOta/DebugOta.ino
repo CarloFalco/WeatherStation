@@ -49,10 +49,8 @@
 #include <SPI.h>
 #include <LoRa.h>
 #include <ArduinoJson.h>
+#include "secret.h"
 
-// --- WiFi: COMPILARE con le proprie credenziali -------------------------
-#define WIFI_SSID     "IL_TUO_SSID"
-#define WIFI_PASSWORD "LA_TUA_PASSWORD"
 
 // --- Repository GitHub da cui prelevare le release ----------------------
 #define GH_OWNER "CarloFalco"
@@ -78,6 +76,10 @@
 #define OTA_CHUNK_MAGIC 0xA5
 #define OTA_CHUNK_DATA  180
 #define FW_PATH         "/firmware.bin"
+// Attesa prima di rispondere a una ota_req: da' alla stazione il tempo di
+// commutare TX -> RX. Non azzerarla, ma nemmeno alzarla troppo: la stazione
+// attende il chunk per chunk_timeout_ms (1500 ms di default).
+#define OTA_TURNAROUND_MS 25
 
 // --- Ogni quanto ricontrollare GitHub da solo ---------------------------
 #define CHECK_INTERVAL_MS (5UL * 60UL * 1000UL)
@@ -290,8 +292,12 @@ void serveOtaSession() {
     return;
   }
 
-  Serial.printf("[OTA] sessione avviata: servo %u chunk...\n", otaChunks);
+  Serial.printf("[OTA] sessione avviata: servo %u chunk (~%lu min)...\n",
+                otaChunks, (unsigned long)(otaChunks * 0.5 / 60) + 1);
   unsigned long deadline = millis() + 60000UL;
+  unsigned long sessionStart = millis();
+  uint16_t firstIdx = 0;
+  bool firstSeen = false;
 
   while ((long)(deadline - millis()) > 0) {
     int packetSize = LoRa.parsePacket();
@@ -305,16 +311,21 @@ void serveOtaSession() {
     const char* type = doc["type"] | "";
 
     if (strcmp(type, "ota_req") == 0) {
-      uint16_t idx = doc["idx"] | 0;
+      uint16_t idx = doc["idx"] | 0UL;
       uint32_t off = (uint32_t)idx * OTA_CHUNK_DATA;
       if (off >= otaSize) continue;
       uint16_t n = min((uint32_t)OTA_CHUNK_DATA, otaSize - off);
+      if (!firstSeen) {  // la stazione puo' riprendere da un chunk > 0
+        firstIdx = idx;
+        firstSeen = true;
+        if (idx > 0) Serial.printf("[OTA] la stazione riprende dal chunk %u\n", idx);
+      }
 
       uint8_t payload[OTA_CHUNK_DATA];
       f.seek(off);
       f.read(payload, n);
 
-      delay(30);  // lascia alla stazione il tempo di commutare TX -> RX
+      delay(OTA_TURNAROUND_MS);  // tempo alla stazione di passare a RX
       LoRa.beginPacket();
       LoRa.write(OTA_CHUNK_MAGIC);
       LoRa.write(idx & 0xFF);
@@ -322,14 +333,31 @@ void serveOtaSession() {
       LoRa.write(payload, n);
       LoRa.endPacket();
 
+      // Torna SUBITO in ascolto: la stazione richiede il chunk successivo
+      // pochi ms dopo averlo ricevuto, e senza questa riga la radio resta
+      // in standby finche' non si rientra in parsePacket().
+      LoRa.receive();
+
       deadline = millis() + 60000UL;  // sessione viva: rinnova il timeout
-      if (idx % 16 == 0) Serial.printf("[OTA] chunk %u/%u inviato\n", idx, otaChunks);
+
+      // Log DOPO il riarmo della RX, cosi' la seriale non ruba tempo utile.
+      if (idx % 64 == 0 || idx + 1 == otaChunks) {
+        unsigned long el = (millis() - sessionStart) / 1000UL;
+        unsigned long served = idx - firstIdx + 1;
+        unsigned long eta = served ? (unsigned long)((uint64_t)el * (otaChunks - idx - 1) / served) : 0;
+        Serial.printf("[OTA] chunk %u/%u (%lu%%), %lu s trascorsi, ETA %lu s\n",
+                      idx, otaChunks, 100UL * (idx + 1) / otaChunks, el, eta);
+      }
 
     } else if (strcmp(type, "ota_done") == 0) {
       bool ok = doc["ok"] | false;
-      uint32_t crc = doc["crc"] | 0;
+      // ATTENZIONE: il default deve essere unsigned. Con "| 0" ArduinoJson
+      // converte passando da int e ogni CRC sopra 0x7FFFFFFF (meta' dei
+      // casi) verrebbe letto come 0.
+      uint32_t crc = doc["crc"] | 0UL;
+      uint16_t next = doc["next"] | 0UL;
       Serial.printf("[OTA] esito stazione: %s (CRC 0x%08lX, atteso 0x%08lX)\n",
-                    ok ? "SUCCESS" : "FAILED",
+                    ok ? "SUCCESS" : "INCOMPLETO",
                     (unsigned long)crc, (unsigned long)otaCrc);
       f.close();
       if (ok) {
@@ -338,6 +366,11 @@ void serveOtaSession() {
         //  versione e non chiedera' piu' l'aggiornamento)
         forceOffer = false;
         Serial.println("[OTA] trasferimento completato");
+      } else {
+        // L'offerta resta armata: la stazione riprendera' da 'next'
+        // al prossimo ciclo (progresso salvato in RTC RAM).
+        Serial.printf("[OTA] la stazione riprendera' dal chunk %u/%u\n",
+                      next, otaChunks);
       }
       return;
     }
@@ -421,9 +454,9 @@ void setup() {
   Serial.println("[LoRa] pronto");
 
   // WiFi
-  Serial.printf("[WiFi] connessione a %s ...\n", WIFI_SSID);
+  Serial.printf("[WiFi] connessione a %s ...\n", ssid);
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.begin(ssid, password);
   unsigned long t0 = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t0 < 20000) {
     delay(250);

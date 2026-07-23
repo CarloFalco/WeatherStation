@@ -20,6 +20,6 @@
 #define FW_VERSION_PATCH 0
 
 /** @brief Firmware version as a human-readable string, e.g. "2.0.0". */
-#define FW_VERSION "3.0.0-alpha.1"
+#define FW_VERSION "3.0.0-alpha.2"
 
 #endif // WEATHERSTATION_VERSION_H

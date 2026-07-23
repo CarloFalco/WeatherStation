@@ -197,11 +197,16 @@ void setup() {
     // its CRC-32. Later stages write to the OTA partition and reboot.
     if (delivered && ackDoc["ota"].is<JsonObject>()) {
         OtaReceiver::Offer offer;
-        offer.size = ackDoc["ota"]["size"] | 0;
-        offer.crc = ackDoc["ota"]["crc"] | 0;
-        offer.chunks = ackDoc["ota"]["chunks"] | 0;
+        // NOTE: the default must be unsigned. With a plain `| 0` literal
+        // ArduinoJson converts through int, and any CRC above 0x7FFFFFFF
+        // (half of them) would silently read back as 0.
+        offer.size = ackDoc["ota"]["size"] | 0UL;
+        offer.crc = ackDoc["ota"]["crc"] | 0UL;
+        offer.chunks = (uint16_t)(ackDoc["ota"]["chunks"] | 0UL);
         offer.version = (const char *)(ackDoc["ota"]["ver"] | "");
         OtaReceiver ota(telemetryLink, appConfig.station.id);
+        ota.configure(appConfig.ota.chunkTimeoutMs, appConfig.ota.maxRetries,
+                      appConfig.ota.sessionTimeoutS);
         ota.runSession(offer);
     }
 

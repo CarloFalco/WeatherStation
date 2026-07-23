@@ -15,6 +15,22 @@
 #include <Arduino.h>
 
 /**
+ * @brief OTA transfer progress, preserved across deep sleep.
+ *
+ * A full firmware image takes ~20 minutes over LoRa: without this, any
+ * interruption would restart the transfer from chunk 0. The station
+ * resumes from @ref nextChunk as soon as the base offers the same image
+ * again (matching size/crc/chunks).
+ */
+struct RtcOtaState {
+    uint32_t size;        ///< Expected image size [bytes]; 0 = no transfer pending.
+    uint32_t crc;         ///< Expected CRC-32 of the whole image.
+    uint16_t chunks;      ///< Total number of chunks of the image.
+    uint16_t nextChunk;   ///< First chunk still to receive (resume point).
+    uint32_t runningCrc;  ///< CRC-32 accumulator over the chunks already stored.
+};
+
+/**
  * @brief Persistent station state, kept in RTC RAM between deep sleeps.
  */
 struct RtcState {
@@ -27,6 +43,7 @@ struct RtcState {
                              ///< deep sleep, so after a rain wake-up the station
                              ///< can go back to sleep for the remaining time
                              ///< instead of restarting the full interval.
+    RtcOtaState ota;         ///< OTA transfer progress (resume across cycles).
 };
 
 /// Global RTC-resident state instance (defined in PowerManager.cpp).

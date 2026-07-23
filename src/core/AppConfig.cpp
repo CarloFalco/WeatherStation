@@ -134,6 +134,22 @@ void AppConfig::applyKey(const String &section, const String &key, const String 
         return;
     }
 
+    if (section == "ota") {
+        if (key == "chunk_timeout_ms") {
+            long v = value.toInt();
+            ota.chunkTimeoutMs = (uint16_t)constrain(v, 200L, 10000L);
+        } else if (key == "max_retries") {
+            long v = value.toInt();
+            ota.maxRetries = (uint8_t)constrain(v, 1L, 50L);
+        } else if (key == "session_timeout_s") {
+            long v = value.toInt();
+            ota.sessionTimeoutS = (uint16_t)constrain(v, 30L, 3600L);
+        } else {
+            log_w("config.ini: unknown key [ota] %s", key.c_str());
+        }
+        return;
+    }
+
     if (section == "lora") {
         if (key == "freq_mhz") {
             lora.freqMhz = value.toFloat();
@@ -204,6 +220,11 @@ bool AppConfig::save() const {
     file.printf("ack_enabled = %s\n", lora.ackEnabled ? "true" : "false");
     file.printf("ack_timeout_ms = %u\n", lora.ackTimeoutMs);
     file.printf("tx_retries = %u\n", lora.txRetries);
+    file.println();
+    file.println("[ota]");
+    file.printf("chunk_timeout_ms = %u\n", ota.chunkTimeoutMs);
+    file.printf("max_retries = %u\n", ota.maxRetries);
+    file.printf("session_timeout_s = %u\n", ota.sessionTimeoutS);
 
     file.close();
     return true;
@@ -227,4 +248,7 @@ void AppConfig::printTo(Stream &out) const {
     out.printf("  [lora]    ack_enabled     = %s\n", lora.ackEnabled ? "true" : "false");
     out.printf("  [lora]    ack_timeout_ms  = %u\n", lora.ackTimeoutMs);
     out.printf("  [lora]    tx_retries      = %u\n", lora.txRetries);
+    out.printf("  [ota]     chunk_timeout_ms= %u\n", ota.chunkTimeoutMs);
+    out.printf("  [ota]     max_retries     = %u\n", ota.maxRetries);
+    out.printf("  [ota]     session_timeout_s = %u\n", ota.sessionTimeoutS);
 }

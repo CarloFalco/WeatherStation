@@ -59,6 +59,15 @@ public:
                                    ///< current during Increment 6 validation).
     };
 
+    /** @brief `[ota]` section: firmware transfer tuning (docs/lora-protocol.md). */
+    struct OtaConfig {
+        uint16_t chunkTimeoutMs = 1500;  ///< Wait for a chunk after each request [ms].
+        uint8_t  maxRetries     = 8;     ///< Attempts per chunk before giving up.
+        uint16_t sessionTimeoutS = 1800; ///< Cap on the awake time of one session [s].
+                                         ///< A full image is ~2400 chunks / ~20 min:
+                                         ///< an interrupted session resumes later.
+    };
+
     /** @brief `[lora]` section: SX1276 radio parameters (see docs/lora-protocol.md). */
     struct LoraConfig {
         float    freqMhz     = 868.1f;  ///< Carrier frequency [MHz], EU868 band.
@@ -105,6 +114,7 @@ public:
     WindConfig    wind;     ///< Active `[wind]` values.
     PowerConfig   power;    ///< Active `[power]` values.
     LoraConfig    lora;     ///< Active `[lora]` values.
+    OtaConfig     ota;      ///< Active `[ota]` values.
 
 private:
     /// Apply a single parsed `key = value` pair belonging to @p section.

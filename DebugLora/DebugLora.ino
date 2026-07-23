@@ -125,27 +125,30 @@ void otaSenderSession() {
     const char* type = doc["type"] | "";
 
     if (strcmp(type, "ota_req") == 0) {
-      uint16_t idx = doc["idx"] | 0;
+      uint16_t idx = doc["idx"] | 0UL;
       size_t off = (size_t)idx * OTA_CHUNK_DATA;
       if (off >= OTA_TEST_SIZE) continue;
       size_t n = OTA_TEST_SIZE - off;
       if (n > OTA_CHUNK_DATA) n = OTA_CHUNK_DATA;
 
-      delay(30);  // commutazione TX->RX della stazione
+      delay(25);  // commutazione TX->RX della stazione
       LoRa.beginPacket();
       LoRa.write(OTA_CHUNK_MAGIC);
       LoRa.write(idx & 0xFF);
       LoRa.write((idx >> 8) & 0xFF);
       LoRa.write(otaData + off, n);
       LoRa.endPacket();
+      LoRa.receive();  // torna subito in ascolto per la richiesta successiva
       deadline = millis() + 60000UL;  // sessione viva: rinnova il timeout
       if (idx % 8 == 0) Serial.printf("[OTA] chunk %u/%u inviato\n", idx, otaChunks);
 
     } else if (strcmp(type, "ota_done") == 0) {
       bool okFlag = doc["ok"] | false;
+      // Default unsigned: con "| 0" ArduinoJson passa da int e i CRC
+      // sopra 0x7FFFFFFF verrebbero letti come 0.
       Serial.printf("[OTA] esito stazione: %s (CRC 0x%08lX, atteso 0x%08lX)\n",
                     okFlag ? "SUCCESS" : "FAILED",
-                    (unsigned long)(doc["crc"] | 0), (unsigned long)otaCrc);
+                    (unsigned long)(doc["crc"] | 0UL), (unsigned long)otaCrc);
       otaArmed = false;
       return;
     }

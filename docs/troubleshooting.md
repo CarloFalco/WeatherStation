@@ -52,7 +52,39 @@ Consultare SEMPRE questo file prima di diagnosticare un problema nuovo.
 - **Causa:** con l'USB *nativo* dell'S3 la porta si ri-enumera a ogni wake-up; non è un crash.
 - **Fix:** usare il connettore UART (bridge) per il monitor durante lo sviluppo.
 
-## 11. (Workflow) PowerShell 5.1: virgolette doppie nei messaggi di commit
+## 11. Trasferimento OTA sempre fallito dopo ~240 chunk
+- **Sintomo:** con un firmware reale (425 kB, 2365 chunk) il trasferimento
+  si interrompeva sempre attorno al chunk 240, con CRC non corrispondente.
+- **Causa:** `kSessionTimeoutMs = 120000` (2 minuti), dimensionato sul file
+  di test da 4 kB. A ~0.5 s/chunk servono **~20 minuti**: il tetto scattava
+  a 120.3 s misurati, cioè esattamente al timeout.
+- **Fix:** `session_timeout_s` in `config.ini` (default 1800 s) + ripresa
+  del trasferimento da RTC RAM, così una sessione interrotta non riparte
+  da zero. Commit successivo a `489620f`.
+
+## 12. OTA: chunk falliti a raffica su link ottimo (RSSI -35 dBm)
+- **Sintomo:** `OTA: chunk N failed after 8 attempts` pur con la base a
+  pochi metri.
+- **Causa (concomitanti):** (a) `LoRaLink::receiveRaw` usava il `receive()`
+  bloccante di RadioLib, che ascolta in finestre **RX-single** da ~102 ms
+  con brevi buchi in mezzo: un chunk il cui preambolo cadeva nel buco era
+  perso; (b) la base, dopo `LoRa.endPacket()`, restava in standby fino al
+  successivo `parsePacket()` e perdeva la richiesta seguente, che la
+  stazione invia pochi ms dopo.
+- **Fix:** RX **continuo** con polling di DIO0 in `receiveRaw`; sulla base
+  `LoRa.receive()` subito dopo `endPacket()` e log spostato dopo il riarmo.
+
+## 13. ArduinoJson: CRC-32 letto come 0 (default `| 0` con valori unsigned)
+- **Sintomo:** `ota_done` con `CRC 0x00000000` pur avendo ricevuto dati.
+- **Causa:** `doc["crc"] | 0` — il letterale `0` è un `int`, quindi
+  ArduinoJson converte con `as<int>()` e un valore sopra `0x7FFFFFFF`
+  (metà dei CRC possibili) finisce fuori range e torna 0. Lo stesso bug
+  era lato stazione su `offer.crc`: avrebbe fatto fallire ~metà degli
+  aggiornamenti con un mismatch inspiegabile.
+- **Fix:** default unsigned ovunque (`| 0UL`), in stazione, DebugOta e
+  DebugLora. Regola: per campi `uint32_t` in JSON usare sempre `| 0UL`.
+
+## 14. (Workflow) PowerShell 5.1: virgolette doppie nei messaggi di commit
 - **Sintomo:** `git commit -m @'...'@` fallisce con `pathspec ... did not match` se il messaggio contiene `"..."`.
 - **Causa:** bug di quoting di PowerShell 5.1 verso gli eseguibili nativi (le `"` interne spezzano gli argomenti).
 - **Fix:** niente virgolette doppie nei messaggi di commit, oppure `git commit -F file`.

@@ -129,17 +129,54 @@ Integrità del singolo pacchetto già garantita dal CRC LoRa hardware.
 ### 4. Esito (stazione → base)
 
 ```json
-{"type":"ota_done","id":"ws-01","ok":true,"crc":305419896}
+{"type":"ota_done","id":"ws-01","ok":true,"crc":305419896,"next":2365}
 ```
 
-### Timing e ritrasmissioni (lato stazione, fw 3.0.0-alpha.1)
+`next` = primo chunk non ancora ricevuto (punto di ripresa). Con `ok:false`
+la base **deve mantenere l'offerta armata**: non è un fallimento definitivo,
+la stazione riprenderà da `next` al ciclo successivo.
 
-- Attesa chunk dopo la richiesta: **1.5 s**; ritentativi per chunk: **8**
-  (ritrasmettendo la stessa `ota_req`); timeout sessione: **120 s**.
-- La base deve attendere ~30 ms prima di rispondere a una `ota_req`
-  (commutazione TX→RX della stazione) e considerare la sessione morta
-  dopo ~60 s senza richieste.
-- Throughput atteso a SF7: ~0.4–0.5 s/chunk ⇒ ~20–25 kB/min.
+> ⚠️ Nota per chi implementa la base in ArduinoJson: leggere `crc` con un
+> default **unsigned** (`doc["crc"] | 0UL`). Con `| 0` la conversione passa
+> per `int` e ogni CRC sopra `0x7FFFFFFF` — metà dei casi — viene letto 0.
+
+### 5. Ripresa del trasferimento
+
+Un'immagine reale (~425 kB) sono ~2400 chunk e **~20 minuti** a SF7: una
+sessione persa non deve ripartire da capo. La stazione conserva in RTC RAM
+(quindi anche attraverso il deep sleep) `size`, `crc`, `chunks`, il prossimo
+chunk e il CRC parziale. Alla successiva offerta:
+
+- se `size`/`crc`/`chunks` **coincidono** e il file su LittleFS è lungo
+  esattamente `next × 180` byte ⇒ riprende da `next` (append);
+- altrimenti riparte da 0 (immagine diversa, oppure file incoerente).
+
+La base non deve fare nulla di speciale: continua a servire i chunk
+richiesti, semplicemente il primo `ota_req` della nuova sessione avrà un
+indice > 0.
+
+### Timing e ritrasmissioni (lato stazione, fw ≥ 3.0.0-alpha.2)
+
+Configurabili in `config.ini`, sezione `[ota]`:
+
+| Parametro | Default | Significato |
+|-----------|---------|-------------|
+| `chunk_timeout_ms` | 1500 | attesa del chunk dopo ogni richiesta |
+| `max_retries` | 8 | tentativi per chunk (ritrasmettendo `ota_req`) |
+| `session_timeout_s` | 1800 | tetto al tempo di veglia di UNA sessione |
+
+- Fra un tentativo e l'altro la stazione attende 20–80 ms casuali, per non
+  restare agganciata a un pattern di collisione con la base.
+- La stazione ascolta in **RX continuo** durante il trasferimento (non a
+  finestre RX-single come per l'ACK): non ci sono buchi d'ascolto in cui
+  perdere il preambolo di un chunk.
+- La base deve attendere ~25 ms prima di rispondere a una `ota_req`
+  (commutazione TX→RX della stazione), **rimettersi subito in ascolto dopo
+  aver trasmesso** il chunk, e considerare la sessione morta dopo ~60 s
+  senza richieste.
+- Throughput misurato su hardware a SF7: **~0.5 s/chunk** (~113 ms la
+  richiesta + ~25 ms turnaround + ~300 ms il chunk) ⇒ ~21 kB/min, cioè
+  ~20 minuti per un firmware completo.
 
 ### Roadmap stage successivi
 

@@ -3,6 +3,37 @@
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/);
 il progetto segue il [Semantic Versioning](https://semver.org/).
 
+## [3.0.0-alpha.2] – 2026-07-16 — OTA stage 1: fix dal primo test su firmware reale
+
+Primo trasferimento di un firmware vero (425 kB, 2365 chunk): falliva
+sistematicamente. Tre bug distinti, tutti corretti.
+
+### Fixed
+- **Timeout di sessione**: `kSessionTimeoutMs` era 120 s, dimensionato sul
+  file di test da 4 kB. Un'immagine reale richiede ~20 minuti a 0.5 s/chunk
+  e il trasferimento moriva sempre a ~240 chunk (120.3 s misurati). Ora è
+  `session_timeout_s` in `config.ini`, default 1800 s.
+- **Buchi in ricezione**: `receiveRaw()` usava il `receive()` bloccante di
+  RadioLib, che ascolta in finestre RX-single da ~102 ms; i chunk il cui
+  preambolo cadeva tra due finestre venivano persi (causa dei "chunk failed
+  after 8 attempts" su link a -35 dBm). Ora usa **RX continuo** con polling
+  di DIO0. Lato base: `LoRa.receive()` subito dopo `endPacket()`, altrimenti
+  la radio restava in standby e perdeva la richiesta successiva.
+- **CRC letto come 0**: `doc["crc"] | 0` fa convertire ArduinoJson attraverso
+  `int`, quindi ogni CRC sopra `0x7FFFFFFF` (metà dei casi) veniva letto 0 —
+  sia lato stazione (`offer.crc`, avrebbe fatto fallire ~metà degli
+  aggiornamenti) sia nei due sketch di debug. Ora default `| 0UL` ovunque.
+
+### Added
+- **Ripresa del trasferimento**: progresso (chunk successivo + CRC parziale)
+  in RTC RAM, quindi sopravvive al deep sleep. Se la base rioffre la stessa
+  immagine e il file su LittleFS è coerente, la stazione riprende dal punto
+  raggiunto invece di ricominciare da capo; `ota_done` porta il campo `next`
+  perché la base sappia dove si è fermata.
+- Sezione `[ota]` in `config.ini`: `chunk_timeout_ms`, `max_retries`,
+  `session_timeout_s`. Backoff casuale 20–80 ms tra i tentativi.
+- Log di avanzamento con percentuale ed **ETA** su entrambi i lati.
+
 ## [3.0.0-alpha.1] – 2026-07-15 — OTA stage 1: trasferimento a chunk via LoRa
 
 La serie 3.0 introduce gli aggiornamenti OTA via LoRa; le pre-release

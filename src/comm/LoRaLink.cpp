@@ -80,19 +80,37 @@ bool LoRaLink::receiveRaw(uint8_t *buf, size_t bufSize, size_t &len, uint32_t ti
         return false;
     }
 
+    // Continuous RX, polled on DIO0 (RxDone). The blocking receive() used
+    // for ACKs listens in RX-single windows of ~100 symbols (~102 ms at
+    // SF7) and stops between them: during an OTA transfer the base answers
+    // within tens of milliseconds, and a chunk whose preamble fell into one
+    // of those gaps was lost, costing a retry. In continuous mode the radio
+    // never stops listening until we take it out.
+    int16_t state = _radio.startReceive();
+    if (state != RADIOLIB_ERR_NONE) {
+        log_w("LoRa startReceive failed, error %d", state);
+        return false;
+    }
+
     uint32_t deadline = millis() + timeoutMs;
     while ((int32_t)(deadline - millis()) > 0) {
-        // len = 0 lets RadioLib read the whole packet into buf.
-        int16_t state = _radio.receive(buf, 0);
-        if (state == RADIOLIB_ERR_NONE) {
-            len = _radio.getPacketLength();
-            log_d("LoRa RX raw: %u bytes, RSSI %.0f dBm", (unsigned)len, _radio.getRSSI());
-            return true;
-        }
-        if (state != RADIOLIB_ERR_RX_TIMEOUT) {
+        if (digitalRead(LORA_DIO0)) {  // RxDone asserted
+            size_t pktLen = _radio.getPacketLength();
+            state = _radio.readData(buf, pktLen);
+            if (state == RADIOLIB_ERR_NONE) {
+                len = pktLen;
+                log_d("LoRa RX raw: %u bytes, RSSI %.0f dBm", (unsigned)len,
+                      _radio.getRSSI());
+                _radio.standby();
+                return true;
+            }
             log_w("LoRa RX raw error %d (corrupted packet?)", state);
+            _radio.startReceive();  // keep listening until the deadline
         }
+        delay(1);
     }
+
+    _radio.standby();
     return false;
 }
 
