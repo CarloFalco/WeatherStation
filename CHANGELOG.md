@@ -23,6 +23,12 @@ La serie 3.0 introduce gli aggiornamenti OTA via LoRa; le pre-release
   sprecato ~33% del payload LoRa).
 - DebugLora.ino: sender OTA di test — 'u' da seriale arma un'offerta di
   4 KB (pattern noto), serve le richieste e stampa l'esito.
+- DebugOta.ino: prototipo del gateway (ESP32-S3 + WiFi + SX1276) — legge
+  l'ultima release da GitHub, scarica il `.bin` su LittleFS calcolando il
+  CRC-32 e lo trasferisce alla stazione col protocollo OTA (offerta
+  nell'ACK, pull dei chunk). Base per la futura integrazione nella
+  dashboard. Comandi seriali: 'u' controlla GitHub, 'f' forza l'offerta,
+  'i' stato.
 
 ### Roadmap
 - Stage 2: scrittura nella partizione OTA inattiva + riavvio + rollback.
