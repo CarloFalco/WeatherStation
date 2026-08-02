@@ -147,6 +147,11 @@ void AppConfig::applyKey(const String &section, const String &key, const String 
                 log_w("config.ini: shunt_mohm=%ld out of range (1..1000), keeping %lu",
                       v, (unsigned long)power.shuntMohm);
             }
+        } else if (key == "rail_settle_ms") {
+            long v = value.toInt();
+            power.railSettleMs = (uint16_t)constrain(v, 0L, 2000L);
+        } else if (key == "rail_off_in_sleep") {
+            power.railOffInSleep = (value == "true" || value == "1" || value == "yes");
         } else {
             log_w("config.ini: unknown key [power] %s", key.c_str());
         }
@@ -234,6 +239,8 @@ bool AppConfig::save() const {
     file.println();
     file.println("[power]");
     file.printf("shunt_mohm = %lu\n", (unsigned long)power.shuntMohm);
+    file.printf("rail_settle_ms = %u\n", power.railSettleMs);
+    file.printf("rail_off_in_sleep = %s\n", power.railOffInSleep ? "true" : "false");
     file.println();
     file.println("[lora]");
     file.printf("freq_mhz = %.1f\n", lora.freqMhz);
@@ -284,6 +291,7 @@ void AppConfig::printTo(Stream &out) const {
     out.printf("  [wind]    sample_window_s = %u\n", wind.sampleWindowS);
     out.printf("  [wind]    vane_offset_deg = %d\n", wind.vaneOffsetDeg);
     out.printf("  [power]   shunt_mohm      = %lu\n", (unsigned long)power.shuntMohm);
+    out.printf("  [power]   rail_off_in_sleep = %s\n", power.railOffInSleep ? "true" : "false");
     out.printf("  [lora]    freq_mhz        = %.1f\n", lora.freqMhz);
     out.printf("  [lora]    bw_khz          = %.1f\n", lora.bwKhz);
     out.printf("  [lora]    sf              = %u\n", lora.sf);

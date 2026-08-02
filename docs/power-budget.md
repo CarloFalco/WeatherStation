@@ -19,27 +19,41 @@ misure reali (procedura in fondo). Requisito: autonomia > 12 mesi.
 
 ## Sleep (la parte che decide l'autonomia)
 
+Topologia hardware (dal 2026-07-16): ramo 3.3 V **commutato** da GPIO 18
+(NPN → IRF9540, pull-down 10k = spento a riposo) che alimenta **AS5600 +
+sonda di umidità**; BME280, INA3221 e SX1276 restano sul ramo sempre acceso.
+
 | Componente | Corrente in deep sleep | mAh/giorno |
 |------------|------------------------|------------|
 | ESP32-S3 deep sleep + RTC | ~10–15 µA | ~0.3 |
 | SX1276 in sleep mode | ~0.2 µA | ~0 |
 | BME280 (auto-sleep dopo forced) | ~0.1 µA | ~0 |
 | INA3221 (power-down dopo single-shot) | ~2 µA | ~0.05 |
-| **AS5600 in LPM3** (fw ≥ 2.9.0) | **~1500 µA** | **~36** |
-| *(AS5600 in modalità default, fw < 2.9.0)* | *~6500 µA* | *~156* |
+| AS5600 + sonda umidità (ramo commutato **spento**) | **0 µA** | **0** |
+| *(prima: AS5600 in LPM3, ramo sempre acceso)* | *~1500 µA* | *~36* |
+| *(prima ancora: AS5600 in modalità default)* | *~6500 µA* | *~156* |
+
+⚠️ **Condizione necessaria: i pull-up I2C devono stare sul ramo commutato.**
+L'AS5600 è sul ramo commutato ma condivide SDA/SCL con BME280 e INA3221 che
+sono sempre alimentati. Se i pull-up restano sul ramo sempre acceso, a rail
+spento iniettano corrente nei diodi ESD dell'AS5600 (≈ (3.3−0.6)/4.7k ≈
+570 µA per linea, fino a ~1.1 mA) alimentandolo parzialmente e vanificando
+buona parte del risparmio. Il firmware fa la sua parte (`Wire.end()` e
+SDA/SCL come input prima di dormire), ma i pull-up esterni può spostarli
+solo l'hardware.
 
 ## Scenari di autonomia (batteria 3000 mAh, senza sole)
 
 | Scenario | Consumo/giorno | Autonomia |
 |----------|----------------|-----------|
-| fw < 2.9.0 (AS5600 default) | ~165 mAh | **~18 giorni** ✗ |
-| fw 2.9.0 (AS5600 LPM3) | ~45 mAh | **~66 giorni** — ok solo col pannello |
-| Con load switch sul rail sensori (TODO hardware) | ~9.5 mAh | **~310 giorni** ✓ |
+| fw < 2.9.0 (AS5600 default) | ~165 mAh | ~18 giorni ✗ |
+| fw 2.9.0 (AS5600 LPM3, rail fisso) | ~45 mAh | ~66 giorni |
+| **fw ≥ 3.0.0-alpha.4 (rail commutato)** | **~9.5 mAh** | **~315 giorni** ✓ |
+| ...con pull-up I2C sul ramo sbagliato | ~35 mAh | ~85 giorni |
 
-Col **pannello solare** (capacità osservata ~660 mA in pieno sole) bastano
-in media ~2 mA di harvesting per coprire lo scenario LPM3: il requisito
-> 12 mesi è raggiungibile già con fw 2.9.0, con margine ridotto nelle
-settimane invernali più buie.
+Col **pannello solare** (capacità osservata ~660 mA in pieno sole) il
+requisito > 12 mesi è ora raggiunto con ampio margine anche nelle settimane
+invernali più buie.
 
 ## Raccomandazioni hardware (in ordine di impatto)
 
@@ -97,6 +111,20 @@ umidità + i pull-up I2C**, lasciando BME280, INA3221 e SX1276 sul ramo
 sempre alimentato. Prima del deep sleep il firmware chiude il bus
 (`Wire.end()`) e lascia SDA/SCL come input: senza pull-up sul ramo acceso
 non resta alcun percorso di alimentazione fantasma.
+
+**Stato**: adottata (2026-07-16). Realizzazione: GPIO 18 → resistenza di
+pull-down 10k + transistor NPN → gate di un **IRF9540** (P-MOSFET high-side)
+sul ramo 3.3 V dedicato. Il pull-down garantisce il ramo spento quando il
+pin non è pilotato (reset, MCU non programmato).
+
+> ⚠️ **Verifica sull'IRF9540.** Non è un MOSFET logic-level: la Rds(on) è
+> specificata a Vgs = −10 V e la soglia arriva fino a −4 V. Commutando il
+> ramo 3.3 V si ha Vgs = −3.3 V, cioè funzionamento appena sopra soglia.
+> Con il carico in gioco (~6.5 mA) la caduta resta comunque piccola anche
+> con qualche ohm di Rds, ma **va misurata la tensione sul ramo commutato a
+> valle del MOSFET, sotto carico**: se scende sotto ~3.0 V l'AS5600 (min
+> 2.7 V) lavora al limite e conviene un P-MOSFET logic-level (AO3401,
+> DMG3415, IRLML6402: soglia ~−0.9 V, stesso schema di pilotaggio).
 
 ## Procedura di misura (per validare le stime)
 

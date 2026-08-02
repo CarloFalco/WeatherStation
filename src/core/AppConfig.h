@@ -60,11 +60,13 @@ public:
         int16_t vaneOffsetDeg = 0;       ///< Added to the AS5600 raw angle to align 0 to North.
     };
 
-    /** @brief `[power]` section: INA3221 energy monitor. */
+    /** @brief `[power]` section: INA3221 monitor and switched sensor rail. */
     struct PowerConfig {
-        uint32_t shuntMohm = 100;  ///< Shunt resistance [milliohm], all channels
-                                   ///< (hardware-verified against a reference
-                                   ///< current during Increment 6 validation).
+        uint32_t shuntMohm = 100;    ///< Shunt resistance [milliohm], all channels
+                                     ///< (hardware-verified against a reference
+                                     ///< current during Increment 6 validation).
+        uint16_t railSettleMs = 50;  ///< Settling time after powering the sensor rail [ms].
+        bool railOffInSleep = true;  ///< Cut the sensor rail before deep sleep.
     };
 
     /** @brief `[ota]` section: firmware transfer tuning (docs/lora-protocol.md). */

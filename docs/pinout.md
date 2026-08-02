@@ -100,16 +100,30 @@ Configurazione tipica:
 | 7    | Anemometro      | Reed switch    | IN (pull-up)    | conteggio impulsi solo durante la veglia     |
 | 1    | Umidita Terreno | Sonda capacitiva | IN (analogico) | **ADC1**_CH0 (obbligatorio ADC1). Sonda alimentata a **3.3 V**: a 5 V l'uscita arriva a ~4.2 V e danneggia l'ADC |
 | 17   | Tasto reset     | Switch verso GND | IN (pull-up)  | RTC-capable ⇒ sorgente di wake EXT1 (condivisa col pluviometro) |
-| 18   | Alimentazione sensori | Load switch | OUT (hold in deep sleep) | RTC-capable. Livello ON = `SENSOR_POWER_ON_LEVEL` in config.h. **Topologia da decidere**: vedi docs/power-budget.md |
+| 18   | Alimentazione ramo 3.3V commutato | NPN + IRF9540 | OUT, HIGH = acceso (hold in deep sleep) | Pull-down 10k ⇒ spento se non pilotato. Alimenta AS5600 + sonda umidità |
 
-> **Nota sul pin 18 (interruttore alimentazione).** Il firmware lo porta a un
-> livello definito (rail acceso) e ne congela lo stato durante il deep sleep,
-> ma **non spegne ancora nulla**: quali dispositivi mettere sul ramo commutato
-> è una decisione hardware aperta. In sintesi (dettagli e numeri in
-> `docs/power-budget.md`): staccare INA3221/BME280/LoRa fa risparmiare ~2 µA
-> in tutto e crea un percorso di back-powering dai pin dell'ESP32 sempre
-> alimentato; gli unici consumi che valgono l'intervento sono **AS5600
-> (~1.5 mA)** e la **sonda di umidità del terreno (~5 mA)**.
+## Alimentazioni
+
+| Ramo | Dispositivi | Note |
+|------|-------------|------|
+| 3.3 V sempre acceso | BME280, INA3221, SX1276 | Consumo a riposo ~2.3 µA in totale: commutarli non darebbe risparmio e creerebbe back-powering dai pin dell'ESP32 |
+| **3.3 V commutato (GPIO 18)** | **AS5600, sonda umidità terreno** | ~6.5 mA a riposo: sono il 99% del budget di sleep. Spento durante il deep sleep dal firmware |
+| 5 V | Pluviometro, anemometro (reed) | ⚠️ vedi avvertenza sotto |
+
+> ⚠️ **I reed switch non vanno alimentati.** Un reed è un contatto passivo:
+> il firmware configura GPIO 6 e 7 come `INPUT_PULLUP` (3.3 V interni) e si
+> aspetta che il contatto li porti **a GND**. Se sui pin arriva un livello
+> a 5 V (contatto verso 5 V, oppure pull-up esterno a 5 V) si superano i
+> limiti d'ingresso dell'ESP32-S3: si danneggia il pin e, in deep sleep, i
+> diodi di clamp ri-alimentano parzialmente la scheda. Cablaggio corretto:
+> un capo del reed al GPIO, l'altro a **GND**, nessuna alimentazione.
+> Se i sensori installati sono moduli attivi con uscita a 5 V serve un
+> level shifter (o un partitore) prima del GPIO.
+
+> **Nota sull'IRF9540**: non è logic-level (soglia fino a −4 V, Rds(on)
+> specificata a −10 V) e pilotato su un ramo a 3.3 V lavora appena sopra
+> soglia. Con ~6.5 mA di carico funziona, ma va misurata la tensione del
+> ramo commutato sotto carico — dettagli in `docs/power-budget.md`.
 
 
 

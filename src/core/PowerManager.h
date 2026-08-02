@@ -54,15 +54,27 @@ public:
     bool wokeFromButton() const { return _extPins & (1ULL << FACTORY_RESET_PIN); }
 
     /**
-     * @brief Drive the sensor rail load switch to a defined state.
+     * @brief Drive the sensor rail load switch (AS5600 + soil probe).
      *
-     * The level is retained during deep sleep (RTC hold), otherwise the
-     * pin would float as soon as the CPU powers down and the switch state
-     * would be undefined.
+     * Hardware: GPIO high -> NPN -> IRF9540 P-MOSFET gate low -> rail on.
+     * A 10k pull-down keeps the rail off whenever the pin is not driven,
+     * so an unprogrammed or resetting MCU leaves the sensors unpowered.
+     * The level is retained during deep sleep (RTC hold).
      *
      * @param on true to power the sensor rail.
      */
     void setSensorRail(bool on);
+
+    /**
+     * @brief Block until the sensor rail has been up for @p settleMs.
+     *
+     * Only waits for the time not already spent booting, so on a release
+     * build (no USB wait) the sensors still get their full settling time
+     * while a debug build usually waits for nothing.
+     *
+     * @param settleMs Settling time required after power-up [ms].
+     */
+    void waitSensorRailSettled(uint16_t settleMs) const;
 
     /**
      * @brief Enter deep sleep with the timer wake-up armed.
@@ -76,7 +88,8 @@ public:
 
 private:
     esp_sleep_wakeup_cause_t _cause = ESP_SLEEP_WAKEUP_UNDEFINED;
-    uint64_t _extPins = 0;  ///< Bitmask of the EXT1 pins that caused the wake-up.
+    uint64_t _extPins = 0;    ///< Bitmask of the EXT1 pins that caused the wake-up.
+    uint32_t _railOnMs = 0;   ///< millis() when the sensor rail was switched on.
 };
 
 #endif // WEATHERSTATION_POWERMANAGER_H

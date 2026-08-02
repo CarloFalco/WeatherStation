@@ -29,6 +29,17 @@ void PowerManager::begin() {
 void PowerManager::setSensorRail(bool on) {
     pinMode(SENSOR_POWER_PIN, OUTPUT);
     digitalWrite(SENSOR_POWER_PIN, on ? SENSOR_POWER_ON_LEVEL : !SENSOR_POWER_ON_LEVEL);
+    if (on) {
+        _railOnMs = millis();
+    }
+    log_d("Sensor rail %s", on ? "ON" : "off");
+}
+
+void PowerManager::waitSensorRailSettled(uint16_t settleMs) const {
+    uint32_t elapsed = millis() - _railOnMs;
+    if (elapsed < settleMs) {
+        delay(settleMs - elapsed);
+    }
 }
 
 const char *PowerManager::wakeupCauseString() const {

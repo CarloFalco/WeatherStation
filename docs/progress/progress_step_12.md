@@ -57,11 +57,33 @@ quei tre in sleep assorbono ~2.3 µA in totale. I consumi veri sono
 proposto non compaiono. Analisi completa e topologia consigliata in
 `docs/power-budget.md`.
 
+## Aggiornamento: topologia confermata (v3.0.0-alpha.4)
+
+Carlo ha confermato il partizionamento delle alimentazioni:
+
+- **3.3 V sempre acceso**: INA3221, BME280, SX1276;
+- **3.3 V commutato** (GPIO 18 → pull-down 10k + NPN → IRF9540): AS5600 e
+  sonda di umidità — esattamente i due consumatori che contano;
+- **5 V**: pluviometro e anemometro (reed).
+
+Implementato quindi lo spegnimento reale prima del deep sleep, con chiusura
+del bus I2C e SDA/SCL come input (i pull-up non devono alimentare l'AS5600
+spento). Autonomia stimata: da ~66 a **~315 giorni** a batteria.
+
+Due verifiche hardware aperte, documentate in `power-budget.md`/`pinout.md`:
+
+1. **Pull-up I2C**: devono stare sul ramo commutato, altrimenti a rail
+   spento iniettano ~1.1 mA nell'AS5600 attraverso i diodi ESD.
+2. **IRF9540**: non è logic-level (soglia fino a −4 V), pilotato a 3.3 V
+   lavora appena sopra soglia; misurare la tensione del ramo sotto carico.
+3. ⚠️ **Reed a 5 V**: un reed è un contatto passivo e non va alimentato. Se
+   sui GPIO 6/7 può arrivare un livello a 5 V si superano i limiti
+   d'ingresso dell'ESP32-S3. Cablaggio corretto: contatto verso GND.
+
 ## TODO per lo step successivo
 
-- [ ] **Validazione hardware step 12**: lettura sonda + taratura, tasto di
-      reset (da sveglia e da deep sleep), wake pioggia ancora funzionante
-      dopo il passaggio a EXT1.
-- [ ] Decisione topologia ramo commutato ⇒ poi implementare lo spegnimento
-      effettivo prima del deep sleep.
+- [ ] **Validazione hardware**: lettura sonda + taratura, tasto di reset (da
+      sveglia e da deep sleep), wake pioggia ancora funzionante dopo il
+      passaggio a EXT1, e misura della corrente di sleep (attesa ~15 µA).
+- [ ] Chiarire il cablaggio dei reed (punto 3 sopra) prima di alimentare.
 - [ ] OTA stage 2: scrittura in partizione, riavvio, rollback.

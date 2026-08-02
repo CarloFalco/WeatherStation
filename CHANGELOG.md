@@ -3,6 +3,29 @@
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/);
 il progetto segue il [Semantic Versioning](https://semver.org/).
 
+## [3.0.0-alpha.4] – 2026-07-16 — Spegnimento del ramo sensori in deep sleep
+
+Topologia hardware confermata: GPIO 18 → NPN → IRF9540 sul ramo 3.3 V
+dedicato ad **AS5600 + sonda di umidità**; BME280, INA3221 e SX1276 sul
+ramo sempre acceso.
+
+### Added
+- Spegnimento effettivo del ramo sensori prima del deep sleep: il bus I2C
+  viene chiuso e SDA/SCL lasciati come input, così i pull-up non possono
+  alimentare l'AS5600 spento attraverso i suoi diodi ESD.
+- `PowerManager::waitSensorRailSettled()`: attende solo il tempo di
+  assestamento non già consumato dal boot (in release non si perde nulla).
+- Chiavi `[power] rail_settle_ms` e `rail_off_in_sleep` (quest'ultima a
+  `false` per diagnosticare col ramo sempre acceso).
+- Il quick path pioggia non accende più il ramo: un evento pioggia non
+  alimenta sensori che non userà.
+
+### Changed
+- Budget di sleep aggiornato in `docs/power-budget.md`: da ~1.5 mA a
+  ~15 µA ⇒ **~315 giorni** di autonomia stimata a batteria (era ~66).
+  Documentate due verifiche hardware: pull-up I2C da spostare sul ramo
+  commutato, e caduta dell'IRF9540 (non logic-level) da misurare.
+
 ## [3.0.0-alpha.3] – 2026-07-16 — Umidità terreno e ripristino di fabbrica
 
 ### Added

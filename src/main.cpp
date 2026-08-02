@@ -138,7 +138,6 @@ void setup() {
     setCpuFrequencyMhz(CPU_FREQ_MHZ);
 
     power.begin();
-    power.setSensorRail(true);  // sensors powered for the whole wake window
     resetButton.begin();
 
     // --- Quick path: rain pulse during deep sleep ---------------------------
@@ -152,10 +151,13 @@ void setup() {
         RainGauge::countSleepPulse();
         int64_t remaining = (int64_t)g_rtcState.nextWakeEpochS - (int64_t)time(nullptr);
         if (remaining > 3) {
-            power.deepSleep((uint32_t)remaining);
+            power.deepSleep((uint32_t)remaining);  // sensor rail stays off
         }
         // Almost time for the scheduled cycle anyway: fall through and run it.
     }
+
+    // Sensor rail (AS5600 + soil probe) powered for the whole wake window.
+    power.setSensorRail(true);
 
     Serial.begin(115200);
 #if CORE_DEBUG_LEVEL >= 3
@@ -182,6 +184,7 @@ void setup() {
     handleFactoryReset();
 
     // --- Measurement window -------------------------------------------------
+    power.waitSensorRailSettled(appConfig.power.railSettleMs);
     Wire.begin(I2C_SDA, I2C_SCL);
 
     rainGauge.configure(appConfig.rain.mmPerPulse);
@@ -267,6 +270,17 @@ void setup() {
     blink(3);
 
     // --- Back to sleep ------------------------------------------------------
+    if (appConfig.power.railOffInSleep) {
+        // Release the I2C bus first: the AS5600 sits on the switched rail
+        // while BME280 and INA3221 do not. If the bus pull-ups stayed
+        // driven, they would feed the unpowered AS5600 through its ESD
+        // diodes and keep it partially alive (see docs/power-budget.md).
+        Wire.end();
+        pinMode(I2C_SDA, INPUT);
+        pinMode(I2C_SCL, INPUT);
+        power.setSensorRail(false);
+    }
+
     g_rtcState.nextWakeEpochS = (uint64_t)time(nullptr) + appConfig.station.wakeIntervalS;
     Serial.printf("\nEntering deep sleep for %lu s\n",
                   (unsigned long)appConfig.station.wakeIntervalS);
