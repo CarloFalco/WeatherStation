@@ -46,6 +46,32 @@
 #define ANEMOMETER_PIN GPIO_NUM_7  ///< Cup anemometer reed switch
 
 // ---------------------------------------------------------------------------
+// Analog sensors
+// ---------------------------------------------------------------------------
+/// Capacitive soil moisture probe (analog output).
+/// GPIO 1 = ADC1_CH0: ADC1 is mandatory here, ADC2 is unusable while WiFi is
+/// on and is reserved on this board anyway.
+/// WARNING: the probe must be powered at 3.3 V. Powered at 5 V its output
+/// swings up to ~4.2 V and would exceed the ESP32-S3 ADC input rating.
+#define SOIL_MOISTURE_PIN GPIO_NUM_1
+
+// ---------------------------------------------------------------------------
+// User interface / power control
+// ---------------------------------------------------------------------------
+/// Factory-reset push button to GND (RTC-capable: also a deep-sleep wake source).
+#define FACTORY_RESET_PIN GPIO_NUM_17
+
+/// Sensor rail load-switch control (RTC-capable, state held during deep sleep).
+/// Currently only driven to a defined ON level at boot: which devices sit on
+/// the switched rail is still an open hardware decision (see
+/// docs/power-budget.md), and cutting the rail is only worth it for the
+/// AS5600 and the soil probe.
+#define SENSOR_POWER_PIN GPIO_NUM_18
+/// Logic level that turns the sensor rail ON (depends on the switch topology:
+/// direct P-MOSFET gate = LOW, N-MOSFET/inverted driver or boost EN = HIGH).
+#define SENSOR_POWER_ON_LEVEL HIGH
+
+// ---------------------------------------------------------------------------
 // Misc
 // ---------------------------------------------------------------------------
 #define STATUS_LED_PIN LED_BUILTIN  ///< On-board status LED (validated on hardware)

@@ -43,11 +43,11 @@ settimane invernali più buie.
 
 ## Raccomandazioni hardware (in ordine di impatto)
 
-1. **Load switch (P-MOSFET high-side) sul rail dei sensori I2C**, comandato
-   da un GPIO: azzera il contributo dell'AS5600 in sleep (36 → ~0.5
-   mAh/giorno). È il singolo intervento che porta l'autonomia da "dipende
-   dal sole" a "> 12 mesi anche al buio". Predisposizione firmware banale
-   (accendere il rail a inizio ciclo, spegnerlo prima del deep sleep).
+1. **Load switch (P-MOSFET high-side) sul rail dei sensori**, comandato da
+   un GPIO (predisposto: `SENSOR_POWER_PIN` = GPIO 18): azzera il
+   contributo dell'AS5600 in sleep (36 → ~0.5 mAh/giorno). È il singolo
+   intervento che porta l'autonomia da "dipende dal sole" a "> 12 mesi
+   anche al buio". Vedi sotto quali dispositivi mettere sul ramo commutato.
 2. **DevKit vs deploy**: la devkit ha bridge USB-seriale e LED di potenza
    sempre alimentati (mA persi non conteggiati sopra, dipendono dalla
    revisione). Per l'installazione definitiva: alimentare il rail 3V3
@@ -66,6 +66,37 @@ settimane invernali più buie.
 - INA3221 in single-shot: power-down automatico tra i cicli.
 - Quick path pioggia: wake EXT0 → conteggio → sleep in ~0.5 s senza radio
   né sensori.
+
+## Che cosa mettere sul ramo commutato (GPIO 18)
+
+Domanda aperta dell'hardware. Il criterio è semplice: **commutare ciò che
+consuma quando dorme**, non ciò che è comodo raggruppare.
+
+| Dispositivo | Assorbimento a riposo | Vale la pena commutarlo? |
+|-------------|----------------------|--------------------------|
+| **AS5600** (banderuola) | ~1500 µA (LPM3) | **Sì** — da solo è ~80% del budget di sleep |
+| **Sonda umidità terreno** | ~5000 µA quando alimentata | **Sì** — è il consumo singolo più grande |
+| Regolatore/boost 5V (se presente) | 0.5–2 mA di quiescente | **Sì**, se esiste: spesso basta pilotarne il pin EN, senza MOSFET |
+| INA3221 | ~2 µA (power-down automatico) | No — risparmio nullo |
+| BME280 | ~0.1 µA (auto-sleep) | No — risparmio nullo |
+| SX1276 | ~0.2 µA (sleep mode) | No — risparmio nullo, e complica l'OTA |
+
+Controindicazioni a staccare INA3221 / BME280 / SX1276:
+
+- **Back-powering**: i pin dell'ESP32 restano alimentati; SPI (SX1276) e I2C
+  (con pull-up sul ramo sempre acceso) inietterebbero corrente nei diodi ESD
+  dei chip spenti, alimentandoli parzialmente e vanificando lo spegnimento.
+  Servirebbe portare a livello basso tutte le linee condivise prima del
+  distacco — complessità in cambio di ~2 µA.
+- **INA3221**: gli ingressi IN+/IN− restano collegati ai rail vivi di
+  pannello e batteria. Il chip è progettato per questo (ingressi fino a 26 V
+  indipendenti da VS), quindi non si danneggia, ma non si guadagna nulla.
+
+**Topologia consigliata**: un ramo commutato che porta **AS5600 + sonda di
+umidità + i pull-up I2C**, lasciando BME280, INA3221 e SX1276 sul ramo
+sempre alimentato. Prima del deep sleep il firmware chiude il bus
+(`Wire.end()`) e lascia SDA/SCL come input: senza pull-up sul ramo acceso
+non resta alcun percorso di alimentazione fantasma.
 
 ## Procedura di misura (per validare le stime)
 

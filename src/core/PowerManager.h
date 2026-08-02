@@ -21,6 +21,7 @@
 
 #include <Arduino.h>
 
+#include "config.h"
 #include "rtc_state.h"
 
 /**
@@ -46,6 +47,23 @@ public:
     /** @return true on power-on/reset, false when waking from deep sleep. */
     bool isColdBoot() const { return _cause == ESP_SLEEP_WAKEUP_UNDEFINED; }
 
+    /** @return true if a rain-gauge pulse woke the station. */
+    bool wokeFromRain() const { return _extPins & (1ULL << RAIN_GAUGE_PIN); }
+
+    /** @return true if the factory-reset button woke the station. */
+    bool wokeFromButton() const { return _extPins & (1ULL << FACTORY_RESET_PIN); }
+
+    /**
+     * @brief Drive the sensor rail load switch to a defined state.
+     *
+     * The level is retained during deep sleep (RTC hold), otherwise the
+     * pin would float as soon as the CPU powers down and the switch state
+     * would be undefined.
+     *
+     * @param on true to power the sensor rail.
+     */
+    void setSensorRail(bool on);
+
     /**
      * @brief Enter deep sleep with the timer wake-up armed.
      *
@@ -58,6 +76,7 @@ public:
 
 private:
     esp_sleep_wakeup_cause_t _cause = ESP_SLEEP_WAKEUP_UNDEFINED;
+    uint64_t _extPins = 0;  ///< Bitmask of the EXT1 pins that caused the wake-up.
 };
 
 #endif // WEATHERSTATION_POWERMANAGER_H

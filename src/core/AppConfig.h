@@ -36,6 +36,14 @@ public:
     struct StationConfig {
         String   id             = "ws-01";  ///< Station identifier sent in every LoRa message.
         uint32_t wakeIntervalS  = 600;      ///< Seconds of deep sleep between measurement cycles.
+        uint16_t factoryResetHoldMs = 3000; ///< Button hold time confirming a factory reset [ms].
+    };
+
+    /** @brief `[soil]` section: capacitive soil moisture probe calibration. */
+    struct SoilConfig {
+        uint16_t dryRaw  = 3000;  ///< ADC counts with the probe in air.
+        uint16_t wetRaw  = 1300;  ///< ADC counts with the probe in water.
+        uint8_t  samples = 8;     ///< Readings averaged per measurement.
     };
 
     /** @brief `[rain]` section: rain-gauge calibration. */
@@ -109,8 +117,21 @@ public:
      */
     void printTo(Stream &out) const;
 
+    /**
+     * @brief Restore the factory settings.
+     *
+     * Deletes /config.ini, resets every value to its compiled-in default
+     * and writes the file back, so the station restarts from a known
+     * state. The caller is responsible for clearing the RTC state and
+     * rebooting.
+     *
+     * @return true if the defaults were persisted.
+     */
+    bool factoryReset();
+
     StationConfig station;  ///< Active `[station]` values.
     RainConfig    rain;     ///< Active `[rain]` values.
+    SoilConfig    soil;     ///< Active `[soil]` values.
     WindConfig    wind;     ///< Active `[wind]` values.
     PowerConfig   power;    ///< Active `[power]` values.
     LoraConfig    lora;     ///< Active `[lora]` values.

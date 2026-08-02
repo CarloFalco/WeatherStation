@@ -76,6 +76,9 @@ void AppConfig::applyKey(const String &section, const String &key, const String 
                 log_w("config.ini: wake_interval_s=%ld too small (<10 s), keeping %lu",
                       v, (unsigned long)station.wakeIntervalS);
             }
+        } else if (key == "factory_reset_hold_ms") {
+            long v = value.toInt();
+            station.factoryResetHoldMs = (uint16_t)constrain(v, 500L, 20000L);
         } else {
             log_w("config.ini: unknown key [station] %s", key.c_str());
         }
@@ -93,6 +96,22 @@ void AppConfig::applyKey(const String &section, const String &key, const String 
             }
         } else {
             log_w("config.ini: unknown key [rain] %s", key.c_str());
+        }
+        return;
+    }
+
+    if (section == "soil") {
+        if (key == "dry_raw") {
+            long v = value.toInt();
+            soil.dryRaw = (uint16_t)constrain(v, 0L, 4095L);
+        } else if (key == "wet_raw") {
+            long v = value.toInt();
+            soil.wetRaw = (uint16_t)constrain(v, 0L, 4095L);
+        } else if (key == "samples") {
+            long v = value.toInt();
+            soil.samples = (uint8_t)constrain(v, 1L, 64L);
+        } else {
+            log_w("config.ini: unknown key [soil] %s", key.c_str());
         }
         return;
     }
@@ -198,9 +217,15 @@ bool AppConfig::save() const {
     file.println("[station]");
     file.printf("id = %s\n", station.id.c_str());
     file.printf("wake_interval_s = %lu\n", (unsigned long)station.wakeIntervalS);
+    file.printf("factory_reset_hold_ms = %u\n", station.factoryResetHoldMs);
     file.println();
     file.println("[rain]");
     file.printf("mm_per_pulse = %.4f\n", rain.mmPerPulse);
+    file.println();
+    file.println("[soil]");
+    file.printf("dry_raw = %u\n", soil.dryRaw);
+    file.printf("wet_raw = %u\n", soil.wetRaw);
+    file.printf("samples = %u\n", soil.samples);
     file.println();
     file.println("[wind]");
     file.printf("mps_per_hz = %.3f\n", wind.mpsPerHz);
@@ -230,11 +255,31 @@ bool AppConfig::save() const {
     return true;
 }
 
+bool AppConfig::factoryReset() {
+    LittleFS.remove(kConfigPath);
+
+    // Assigning a fresh instance restores every compiled-in default in one
+    // go: no risk of forgetting a field when new sections are added.
+    station = StationConfig{};
+    rain = RainConfig{};
+    soil = SoilConfig{};
+    wind = WindConfig{};
+    power = PowerConfig{};
+    lora = LoraConfig{};
+    ota = OtaConfig{};
+
+    bool ok = save();
+    log_w("Factory reset: configuration restored to defaults (%s)",
+          ok ? "saved" : "SAVE FAILED");
+    return ok;
+}
+
 void AppConfig::printTo(Stream &out) const {
     out.println("Active configuration:");
     out.printf("  [station] id              = %s\n", station.id.c_str());
     out.printf("  [station] wake_interval_s = %lu\n", (unsigned long)station.wakeIntervalS);
     out.printf("  [rain]    mm_per_pulse    = %.4f\n", rain.mmPerPulse);
+    out.printf("  [soil]    dry_raw/wet_raw = %u / %u\n", soil.dryRaw, soil.wetRaw);
     out.printf("  [wind]    mps_per_hz      = %.3f\n", wind.mpsPerHz);
     out.printf("  [wind]    sample_window_s = %u\n", wind.sampleWindowS);
     out.printf("  [wind]    vane_offset_deg = %d\n", wind.vaneOffsetDeg);

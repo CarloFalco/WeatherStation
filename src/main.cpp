@@ -20,12 +20,14 @@
 #include "ota/OtaReceiver.h"
 #include "version.h"
 #include "core/AppConfig.h"
+#include "core/FactoryResetButton.h"
 #include "core/PowerManager.h"
 #include "sensors/Anemometer.h"
 #include "sensors/Bme280Sensor.h"
 #include "sensors/PowerMonitor.h"
 #include "sensors/RainGauge.h"
 #include "sensors/SensorManager.h"
+#include "sensors/SoilMoistureSensor.h"
 #include "sensors/WindVane.h"
 
 /// Station runtime configuration, loaded from LittleFS at boot.
@@ -44,6 +46,10 @@ static Anemometer anemometer;
 static WindVane windVane;
 /// INA3221 energy monitor (panel / battery / load).
 static PowerMonitor powerMonitor;
+/// Capacitive soil moisture probe.
+static SoilMoistureSensor soilMoisture;
+/// Physical factory-reset push button.
+static FactoryResetButton resetButton;
 /// LoRa telemetry link (parameters read from appConfig at begin()).
 static LoRaLink telemetryLink(appConfig.lora);
 
@@ -83,6 +89,35 @@ static bool waitForAck(uint16_t seq, JsonDocument &ackOut) {
 }
 
 /**
+ * @brief Handle the factory-reset button if it is held at boot.
+ *
+ * Requires the button to be held for [station] factory_reset_hold_ms
+ * (LED blinking as a countdown) so that a stray press cannot wipe the
+ * configuration. On confirmation the config file is restored to defaults,
+ * the RTC state is cleared and the node reboots — this call never returns
+ * in that case.
+ */
+static void handleFactoryReset() {
+    if (!resetButton.isPressed()) {
+        return;
+    }
+
+    Serial.printf("\nFactory reset: hold the button for %u ms to confirm...\n",
+                  appConfig.station.factoryResetHoldMs);
+    if (!resetButton.confirmHold(appConfig.station.factoryResetHoldMs)) {
+        Serial.println("Factory reset: aborted (button released)");
+        return;
+    }
+
+    appConfig.factoryReset();
+    g_rtcState = {};  // boot count, seq, rain accumulator, OTA progress
+    Serial.println("Factory reset: done, restarting");
+    Serial.flush();
+    delay(500);
+    ESP.restart();
+}
+
+/**
  * @brief Blink the status LED a few times to signal activity.
  *
  * @param times Number of blinks.
@@ -103,13 +138,17 @@ void setup() {
     setCpuFrequencyMhz(CPU_FREQ_MHZ);
 
     power.begin();
+    power.setSensorRail(true);  // sensors powered for the whole wake window
+    resetButton.begin();
 
     // --- Quick path: rain pulse during deep sleep ---------------------------
     // Count the tip and go back to sleep for the time left until the next
     // scheduled cycle. No serial wait, no sensors, no radio: a rain event
     // costs milliseconds of CPU, not a full measurement cycle. The RTC
     // clock keeps running in deep sleep, so time() is monotonic here.
-    if (power.wakeupCause() == ESP_SLEEP_WAKEUP_EXT0) {
+    // A button press shares the same EXT1 source but must reach the full
+    // boot path, so it never takes this shortcut.
+    if (power.wokeFromRain() && !power.wokeFromButton()) {
         RainGauge::countSleepPulse();
         int64_t remaining = (int64_t)g_rtcState.nextWakeEpochS - (int64_t)time(nullptr);
         if (remaining > 3) {
@@ -138,6 +177,10 @@ void setup() {
     appConfig.begin();
     appConfig.printTo(Serial);
 
+    // Checked after the config is loaded: the hold time is configurable and
+    // the reset must be able to rewrite the file.
+    handleFactoryReset();
+
     // --- Measurement window -------------------------------------------------
     Wire.begin(I2C_SDA, I2C_SCL);
 
@@ -145,11 +188,14 @@ void setup() {
     anemometer.configure(appConfig.wind.mpsPerHz, appConfig.wind.sampleWindowS);
     windVane.configure(appConfig.wind.vaneOffsetDeg);
     powerMonitor.configure(appConfig.power.shuntMohm);
+    soilMoisture.configure(appConfig.soil.dryRaw, appConfig.soil.wetRaw,
+                           appConfig.soil.samples);
     sensors.add(&bme280);
     sensors.add(&rainGauge);
     sensors.add(&anemometer);
     sensors.add(&windVane);
     sensors.add(&powerMonitor);
+    sensors.add(&soilMoisture);
     size_t healthy = sensors.beginAll();
     Serial.printf("\nSensors ready : %u\n", (unsigned)healthy);
 

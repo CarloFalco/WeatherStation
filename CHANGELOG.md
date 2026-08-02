@@ -3,6 +3,30 @@
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/);
 il progetto segue il [Semantic Versioning](https://semver.org/).
 
+## [3.0.0-alpha.3] – 2026-07-16 — Umidità terreno e ripristino di fabbrica
+
+### Added
+- `SoilMoistureSensor` (`src/sensors/`): sonda capacitiva su GPIO 1
+  (ADC1_CH0, attenuazione 12 dB, media di N letture) → campo `soil` [%]
+  nel JSON. Taratura `[soil] dry_raw`/`wet_raw` in `config.ini`; letture
+  fuori range plausibile ⇒ sonda scollegata, campo assente (mai inventato).
+- `logic::soilRawToPercent` in `src/logic/` (conversione inversa con clamp
+  e validazione della taratura) con 7 unit test nativi.
+- `FactoryResetButton` (`src/core/`) + `AppConfig::factoryReset()`:
+  ripristino delle impostazioni di fabbrica da tasto fisico su GPIO 17,
+  con conferma a pressione prolungata (`factory_reset_hold_ms`, default
+  3 s) e LED come countdown. Il reset cancella `/config.ini`, riscrive i
+  default e azzera lo stato RTC (contatori, pioggia, progresso OTA).
+- `SENSOR_POWER_PIN` (GPIO 18) portato a un livello definito e congelato
+  durante il deep sleep (RTC hold), in attesa della decisione sulla
+  topologia del ramo commutato (analisi in `docs/power-budget.md`).
+
+### Changed
+- Il wake da deep sleep passa da EXT0 a **EXT1**: pluviometro (GPIO 6) e
+  tasto reset (GPIO 17) condividono la sorgente e vengono distinti con
+  `esp_sleep_get_ext1_wakeup_status()`. Il quick path pioggia resta
+  invariato; una pressione del tasto percorre sempre il boot completo.
+
 ## [3.0.0-alpha.2] – 2026-07-16 — OTA stage 1: fix dal primo test su firmware reale
 
 Primo trasferimento di un firmware vero (425 kB, 2365 chunk): falliva
