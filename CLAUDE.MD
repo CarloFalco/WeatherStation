@@ -41,10 +41,13 @@ Sviluppo a increment piccoli validati su hardware dall'utente prima di procedere
 - `core/` = AppConfig (INI su LittleFS) + PowerManager (sleep, wake cause, RTC state).
 - `sensors/` = ISensor + SensorManager (registro; guasto ⇒ campi assenti, ciclo continua).
 - `comm/` = ITelemetryLink → LoRaLink (RadioLib, TX + finestra ACK + retry).
-- Wake pioggia (EXT0) = quick path: conta impulso e ridorme per il tempo residuo.
+- Wake su EXT1 (pluviometro GPIO 6 + tasto reset GPIO 17): pioggia = quick path,
+  conta l'impulso e ridorme per il tempo residuo; un ingresso bloccato basso
+  viene escluso dal wake per quel ciclo (evita il loop di risvegli).
+- Ramo 3.3V commutato (GPIO 18, HIGH = acceso): AS5600 + sonda umidità + pull-up I2C.
 - Dettagli: `docs/architecture.md` · protocollo: `docs/lora-protocol.md`.
 
-## Hardware (riassunto — dettagli in docs/pinout.md)
+## Hardware (riassunto — dettagli in docs/pinout.md, schematico docs/WeatherStationV2.pdf)
 - ESP32-S3 Dev Module **N16R8** (16MB flash, PSRAM disattivata di proposito).
 - SX1276 su SPI: SCK=12, MISO=13, MOSI=11, NSS=10, RST=9, DIO0=8.
 - I2C SDA=4/SCL=5: BME280 @0x76, AS5600 @0x36, INA3221 @0x40
@@ -53,7 +56,8 @@ Sviluppo a increment piccoli validati su hardware dall'utente prima di procedere
 - LED stato = LED_BUILTIN.
 
 ## Problemi noti / gotcha
-- Consultare SEMPRE `docs/troubleshooting.md` prima di diagnosticare (11 voci reali).
+- Consultare SEMPRE `docs/troubleshooting.md` prima di diagnosticare.
+- Scheda v1.0: R8/R9 tirano GPIO 7/6 a +5V (fuori specifica, vedi pinout.md).
 - Dopo aver cambiato `data/config.ini` serve `pio run -t uploadfs` (il file sul
   device vince sui default nel codice).
 - `wake_interval_s = 30` in locale è un valore di test: nel repo va committato 600.

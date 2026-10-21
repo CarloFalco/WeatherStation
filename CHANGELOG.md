@@ -3,6 +3,28 @@
 Formato basato su [Keep a Changelog](https://keepachangelog.com/it/1.1.0/);
 il progetto segue il [Semantic Versioning](https://semver.org/).
 
+## [3.0.0-alpha.5] – 2026-10-21 — Scheda v1.0: verifica schematico e wake robusto
+
+Prima scheda stampata e montata. Pinout dello schematico verificato contro
+`include/config.h`: coincide, nessun pin da spostare.
+
+### Fixed
+- **Ingresso di wake bloccato basso ⇒ loop di risvegli.** EXT1 `ANY_LOW` è
+  a livello: un pin ancora basso al momento del deep sleep risveglia subito
+  la scheda. Prima di dormire ogni ingresso di wake viene ora verificato:
+  se è basso si attende il rilascio stabile (max 300 ms), altrimenti viene
+  escluso dal wake per quel ciclo (resta il timer). Copre due casi reali:
+  il reed del pluviometro ancora chiuso a fine quick path (la stessa
+  basculata sarebbe stata contata due volte) e un ingresso bloccato per
+  sempre (secchiello fermo sul reed, acqua in un connettore esterno, tasto
+  incastrato), che avrebbe scaricato la batteria in poche ore.
+
+### Docs
+- Schematico e PCB della scheda v1.0 in `docs/` (PDF).
+- `docs/pinout.md`: tabella di verifica per blocco; segnalate **R8/R9 con
+  pull-up a +5V su GPIO 7/6** (fuori specifica, ~0.25 mA di consumo in
+  sleep) con la correzione consigliata: R9 → +3V3, R8 → +3V3SUP.
+
 ## [3.0.0-alpha.4] – 2026-07-16 — Spegnimento del ramo sensori in deep sleep
 
 Topologia hardware confermata: GPIO 18 → NPN → IRF9540 sul ramo 3.3 V

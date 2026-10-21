@@ -108,17 +108,41 @@ Configurazione tipica:
 |------|-------------|------|
 | 3.3 V sempre acceso | BME280, INA3221, SX1276 | Consumo a riposo ~2.3 µA in totale: commutarli non darebbe risparmio e creerebbe back-powering dai pin dell'ESP32 |
 | **3.3 V commutato (GPIO 18)** | **AS5600, sonda umidità terreno** | ~6.5 mA a riposo: sono il 99% del budget di sleep. Spento durante il deep sleep dal firmware |
-| 5 V | Pluviometro, anemometro (reed) | ⚠️ vedi avvertenza sotto |
+| 5 V | Pluviometro, anemometro (reed) | ⚠️ pull-up a 5 V: vedi sotto |
 
-> ⚠️ **I reed switch non vanno alimentati.** Un reed è un contatto passivo:
-> il firmware configura GPIO 6 e 7 come `INPUT_PULLUP` (3.3 V interni) e si
-> aspetta che il contatto li porti **a GND**. Se sui pin arriva un livello
-> a 5 V (contatto verso 5 V, oppure pull-up esterno a 5 V) si superano i
-> limiti d'ingresso dell'ESP32-S3: si danneggia il pin e, in deep sleep, i
-> diodi di clamp ri-alimentano parzialmente la scheda. Cablaggio corretto:
-> un capo del reed al GPIO, l'altro a **GND**, nessuna alimentazione.
-> Se i sensori installati sono moduli attivi con uscita a 5 V serve un
-> level shifter (o un partitore) prima del GPIO.
+## Scheda v1.0 (schematico: `docs/WeatherStationV2.pdf`, PCB: `docs/WeatherStationV2_PCB.pdf`)
+
+Verifica dello schematico rispetto a `include/config.h` (2026-10-21): tutti i
+pin coincidono. Note per componente:
+
+| Blocco | Esito | Note |
+|--------|-------|------|
+| LoRa CN1 | ✔ | DIO0 su **GPIO 8** (net `GPIO08`) — non GPIO 7, che è l'anemometro |
+| Bus I2C | ✔ | Pull-up R1/R3 4.7k su **+3V3SUP** (via JP1/JP2): spariscono col ramo spento, nessuna alimentazione fantasma verso l'AS5600 |
+| Ramo commutato | ✔ | GPIO 18 → R4 1k → 2N3904 (R5 10k a GND sulla base) → gate IRF9540 (R2 5k1 a +3V3). HIGH = acceso, pin flottante = spento. J1 seleziona MOSFET o bypass: per il risparmio deve stare sul MOSFET |
+| Tasto reset U1 | ✔ | GPIO 17, pull-up R12 10k a +3V3, contatto verso GND |
+| Sonda umidità RJ7 | ✔ | Alimentata da +3V3SUP: uscita entro il range dell'ADC |
+| **Pluviometro RJ3** | ⚠️ | **R9 10k da GPIO 6 a +5V** |
+| **Anemometro RJ4** | ⚠️ | **R8 10k da GPIO 7 a +5V** |
+
+> ⚠️ **R8 e R9 tirano GPIO 6/7 a 5 V.** I GPIO dell'ESP32-S3 non sono 5 V
+> tolerant (VIH max = VDD + 0.3 V ≈ 3.6 V). Con il reed aperto — cioè quasi
+> sempre — la 10k inietta ~0.12 mA per pin nei diodi di clamp verso il 3.3 V,
+> anche durante il deep sleep: è fuori specifica e, con due pin, aggiunge
+> ~0.25 mA al consumo di sleep (≈ 15× il budget di ~15 µA: autonomia stimata
+> da ~315 a ~200 giorni).
+>
+> **Correzione consigliata** (taglio pista + ponticello, o revisione PCB):
+> - **R9 (pluviometro, GPIO 6) → +3V3** (sempre acceso): il pull-up serve
+>   anche in deep sleep per il wake-on-rain;
+> - **R8 (anemometro, GPIO 7) → +3V3SUP** (commutato): l'anemometro non è
+>   una sorgente di wake, e così se le coppe si fermano con il magnete sul
+>   reed (contatto chiuso) non scorrono 0.33 mA tutta la notte.
+>
+> Il pin 5 dei connettori RJ3/RJ4 (+5V) non serve a un reed passivo a due
+> fili. Se invece i sensori sono moduli attivi (es. a effetto Hall) che
+> richiedono 5 V, la loro uscita va riportata a 3.3 V con un partitore o un
+> level shifter.
 
 > **Nota sull'IRF9540**: non è logic-level (soglia fino a −4 V, Rds(on)
 > specificata a −10 V) e pilotato su un ramo a 3.3 V lavora appena sopra
