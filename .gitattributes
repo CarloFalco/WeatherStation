@@ -1,0 +1,6 @@
+# Binary files: never apply line-ending conversion (core.autocrlf would
+# corrupt them on checkout if git misdetects them as text).
+*.pdf binary
+*.png binary
+*.jpg binary
+*.bin binary
