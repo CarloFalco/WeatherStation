@@ -122,8 +122,8 @@ pin coincidono. Note per componente:
 | Ramo commutato | ✔ | GPIO 18 → R4 1k → 2N3904 (R5 10k a GND sulla base) → gate IRF9540 (R2 5k1 a +3V3). HIGH = acceso, pin flottante = spento. J1 seleziona MOSFET o bypass: per il risparmio deve stare sul MOSFET |
 | Tasto reset U1 | ✔ | GPIO 17, pull-up R12 10k a +3V3, contatto verso GND |
 | Sonda umidità RJ7 | ✔ | Alimentata da +3V3SUP: uscita entro il range dell'ADC |
-| **Pluviometro RJ3** | ⚠️ | **R9 10k da GPIO 6 a +5V** |
-| **Anemometro RJ4** | ⚠️ | **R8 10k da GPIO 7 a +5V** |
+| **Pluviometro RJ3** | ⚠️ | Sensore Hall **A3144** (Vcc 5 V, uscita open collector). **R9 10k da GPIO 6 a +5V** |
+| **Anemometro RJ4** | ⚠️ | **WH-SP-WS01** (reed interno, passivo). **R8 10k da GPIO 7 a +5V** |
 
 > ⚠️ **R8 e R9 tirano GPIO 6/7 a 5 V.** I GPIO dell'ESP32-S3 non sono 5 V
 > tolerant (VIH max = VDD + 0.3 V ≈ 3.6 V). Con il reed aperto — cioè quasi
@@ -133,16 +133,21 @@ pin coincidono. Note per componente:
 > da ~315 a ~200 giorni).
 >
 > **Correzione consigliata** (taglio pista + ponticello, o revisione PCB):
-> - **R9 (pluviometro, GPIO 6) → +3V3** (sempre acceso): il pull-up serve
->   anche in deep sleep per il wake-on-rain;
-> - **R8 (anemometro, GPIO 7) → +3V3SUP** (commutato): l'anemometro non è
->   una sorgente di wake, e così se le coppe si fermano con il magnete sul
->   reed (contatto chiuso) non scorrono 0.33 mA tutta la notte.
+> - **R9 (pluviometro, GPIO 6) → +3V3** (sempre acceso). L'A3144 resta
+>   alimentato a 5 V dal pin 5 di RJ3 (minimo 4.5 V da datasheet): la sua
+>   uscita è **open collector**, quindi il livello alto lo decide solo il
+>   pull-up. Con R9 a 3.3 V il GPIO vede 0/3.3 V senza bisogno di partitori
+>   o level shifter. Il pull-up deve restare alimentato anche in deep sleep
+>   per il wake-on-rain.
+> - **R8 (anemometro, GPIO 7) → +3V3SUP** (commutato). Il WH-SP-WS01 è un
+>   reed passivo e il +5V del pin 5 di RJ4 non gli serve. L'anemometro non è
+>   una sorgente di wake: col pull-up sul ramo commutato, se le coppe si
+>   fermano con il magnete sul reed non scorrono 0.33 mA tutta la notte.
 >
-> Il pin 5 dei connettori RJ3/RJ4 (+5V) non serve a un reed passivo a due
-> fili. Se invece i sensori sono moduli attivi (es. a effetto Hall) che
-> richiedono 5 V, la loro uscita va riportata a 3.3 V con un partitore o un
-> level shifter.
+> ⚠️ **Consumo dell'A3144.** Il sensore Hall è sempre alimentato (deve poter
+> svegliare la stazione) e assorbe ~4.4 mA tipici da datasheet: da solo
+> vale ~100 mAh/giorno, dieci volte il resto della stazione. Alternative
+> e numeri in `docs/power-budget.md`.
 
 > **Nota sull'IRF9540**: non è logic-level (soglia fino a −4 V, Rds(on)
 > specificata a −10 V) e pilotato su un ramo a 3.3 V lavora appena sopra

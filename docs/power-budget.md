@@ -126,6 +126,47 @@ pin non è pilotato (reset, MCU non programmato).
 > 2.7 V) lavora al limite e conviene un P-MOSFET logic-level (AO3401,
 > DMG3415, IRLML6402: soglia ~−0.9 V, stesso schema di pilotaggio).
 
+## Scheda v1.0: sensori reali e loro consumi (2026-10-21)
+
+| Sensore | Tipo | Alimentazione | Consumo in sleep |
+|---------|------|---------------|------------------|
+| Pluviometro | Hall **A3144**, open collector | 5 V, sempre acceso (è la sorgente di wake) | **~4.4 mA tipici** |
+| Anemometro | WH-SP-WS01, reed passivo | nessuna (solo pull-up) | 0 con R8 su +3V3SUP |
+
+L'A3144 è un sensore Hall "a piena potenza" (alimentazione minima 4.5 V,
+nessuna modalità a basso consumo): con ~4.4 mA continui aggiunge ~105 mAh
+al giorno, e l'autonomia stimata a batteria senza sole scende da ~315 a
+~26 giorni. È di gran lunga la voce più grande del budget.
+
+Alternative per il pluviometro, in ordine di preferenza:
+
+1. **Reed switch** al posto dell'Hall (la soluzione standard dei pluviometri
+   a vaschetta): contatto passivo, 0 µA, stesso cablaggio dell'anemometro.
+   Il firmware ha già il debounce (150 ms) e la protezione contro l'ingresso
+   bloccato basso.
+2. **Hall a basso consumo** alimentabile a 3.3 V (es. TI DRV5032,
+   Honeywell SM351LT): pochi µA o meno, ma campionano il campo magnetico a
+   frequenza fissa (da pochi Hz a decine di Hz secondo la variante). Va
+   scelta una variante il cui periodo di campionamento sia ben più breve
+   del passaggio del magnete durante la basculata, altrimenti si perdono
+   impulsi.
+
+## Ramo commutato: alternative all'IRF9540
+
+Il carico del ramo è piccolo (~7 mA: AS5600 + sonda umidità + pull-up I2C),
+quindi conta solo che l'interruttore sia pienamente acceso con 3.3 V di
+pilotaggio.
+
+| Opzione | Dove | Note |
+|---------|------|------|
+| P-MOSFET **logic-level** (AO3401A, IRLML6402, Si2301CDS, DMG3415U) | Sostituzione sulla scheda v1.0 | SOT-23, soglia ~−0.5…−1.3 V, Rds(on) specificata già a Vgs = −2.5 V. Stesso circuito di pilotaggio (2N3904 + R2), firmware invariato. Sul footprint TO-220 serve un adattatore: l'ordine dei pin è diverso (TO-220: G-D-S; SOT-23: 1 = G, 2 = S, 3 = D) |
+| **Load switch integrato** (TI TPS22917 o TPS22918) | Revisione PCB | Sostituisce Q2, Q4, R2, R4 e R5. Pilotato direttamente da GPIO 18 con enable attivo alto (firmware invariato), ~80 mΩ, corrente a riposo sotto il µA, salita della tensione controllata (niente picco di corrente su C3) e scarica dell'uscita quando è spento |
+
+Con il jumper J1 sul bypass (+3V3SUP sempre acceso) il firmware funziona
+senza modifiche: pilota GPIO 18 su una parte di circuito non montata, ma
+AS5600 (~1.5 mA in LPM3) e sonda umidità (~5 mA) restano accesi durante il
+sonno, con ~155 mAh/giorno in più.
+
 ## Procedura di misura (per validare le stime)
 
 1. **Sleep**: multimetro in serie alla batteria (portata µA/mA), stazione in
